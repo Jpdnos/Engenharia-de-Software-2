@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebGIS Saúde · Farmácias e Laboratórios próximos a hospitais (BH)</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    /* Novo esquema de cores: Tema Claro e Moderno */
+    --bp-bg: #f8f9fa;
+    --bp-bg-deep: #e9ecef;
+    --bp-panel: #ffffff;
+    --bp-panel-alt: #f1f3f5;
+    --bp-line: #dee2e6;
+    --bp-line-soft: rgba(13, 110, 253, 0.1);
+    --bp-text: #2b2d42;
+    --bp-text-dim: #6c757d;
+    
+    /* Cores de Destaque */
+    --bp-cyan: #0d6efd; /* Azul corporativo/saúde */
+    --bp-amber: #e63946; /* Vermelho suave para alertas e hospital */
+    --bp-amber-dim: #c1121f;
+    --bp-red: #d90429;
+    --bp-green: #2a9d8f; /* Verde para farmácias */
+    --bp-purple: #8338ec; /* Roxo para laboratórios */
+    
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-body: 'IBM Plex Sans', sans-serif;
+  }
+
+  /* Ajuste no body para garantir que o fundo claro funcione bem */
+  body {
+    margin: 0; padding: 0; height: 100vh; overflow: hidden;
+    display: flex; font-family: var(--font-body); 
+    background: var(--bp-bg-deep); 
+    color: var(--bp-text);
+  }
+  #map{ flex:1; height:100vh; }
+  #map .leaflet-control-attribution{ font-family:var(--font-mono); font-size:10px; }
+
+  #sidebar{
+    width:380px; min-width:380px; height:100vh; display:flex; flex-direction:column;
+    background-color:var(--bp-bg);
+    background-image:
+      linear-gradient(var(--bp-line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bp-line-soft) 1px, transparent 1px);
+    background-size:22px 22px;
+    box-shadow: -2px 0 18px rgba(0,0,0,0.45);
+    position:relative;
+    z-index:1000;
+  }
+  #sidebar::before, #sidebar::after{
+    content:""; position:absolute; width:14px; height:14px; border:2px solid var(--bp-cyan); opacity:.55;
+    pointer-events:none;
+  }
+  #sidebar::before{ top:8px; left:8px; border-right:none; border-bottom:none; }
+  #sidebar::after{ top:8px; right:8px; border-left:none; border-bottom:none; }
+
+  #sidebar-scroll{ flex:1; overflow-y:auto; padding:22px 18px 12px 18px; }
+  #sidebar-scroll::-webkit-scrollbar{ width:8px; }
+  #sidebar-scroll::-webkit-scrollbar-thumb{ background:var(--bp-line); border-radius:4px; }
+
+  header.title-block{ border-bottom:1px solid var(--bp-line); padding-bottom:14px; margin-bottom:16px; }
+  header.title-block .eyebrow{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.14em; color:var(--bp-cyan);
+    text-transform:uppercase;
+  }
+  header.title-block h1{
+    font-family:var(--font-display); font-size:21px; font-weight:700; margin:4px 0 2px 0; letter-spacing:.01em;
+  }
+  header.title-block p{ margin:0; font-size:12.5px; color:var(--bp-text-dim); }
+
+  details.section{
+    border:1px solid var(--bp-line); border-radius:6px; margin-bottom:12px; background:var(--bp-panel-alt);
+    overflow:hidden;
+  }
+  details.section[open] summary{ border-bottom:1px solid var(--bp-line); }
+  details.section summary{
+    cursor:pointer; list-style:none; padding:10px 12px; display:flex; align-items:center; gap:10px;
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.04em; color:var(--bp-cyan);
+    background:var(--bp-panel); user-select:none;
+  }
+  details.section summary::-webkit-details-marker{ display:none; }
+  details.section summary .tag{ font-weight:600; color:var(--bp-amber); min-width:26px; }
+  details.section summary::after{ content:"+"; margin-left:auto; font-size:15px; color:var(--bp-text-dim); }
+  details.section[open] summary::after{ content:"–"; }
+  .section-body{ padding:12px; display:flex; flex-direction:column; gap:9px; }
+
+  label.field-label{ font-size:11px; color:var(--bp-text-dim); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.05em; margin-bottom:-3px; }
+
+  button, select, input[type="number"], input[type="text"]{
+    font-family:var(--font-body); font-size:13px; border-radius:4px; border:1px solid var(--bp-line);
+  }
+  button{
+    padding:9px 10px; cursor:pointer; background:var(--bp-panel); color:var(--bp-text); font-weight:500;
+    transition:background .15s ease, border-color .15s ease; text-align:left;
+  }
+  button:hover{ background:#1c4166; border-color:var(--bp-cyan); }
+  button:active{ transform:translateY(1px); }
+  button.btn-accent{ background:var(--bp-amber); color:#20140a; border-color:var(--bp-amber-dim); font-weight:600; }
+  button.btn-accent:hover{ background:#ffc233; }
+  button.btn-ghost.active{ border-color:var(--bp-amber); color:var(--bp-amber); }
+  button.btn-small{ flex:1; padding:7px 6px; font-size:11.5px; text-align:center; }
+  .btn-row{ display:flex; gap:8px; }
+  .btn-row button{ flex:1; }
+
+  select, input[type="number"], input[type="text"]{
+    padding:8px 9px; background:var(--bp-panel); color:var(--bp-text); width:100%;
+  }
+  select:focus, input:focus, button:focus-visible{ outline:2px solid var(--bp-cyan); outline-offset:1px; }
+
+  .checkbox-row{ display:flex; align-items:center; gap:8px; font-size:13px; }
+  .checkbox-row input{ accent-color:var(--bp-cyan); width:15px; height:15px; }
+
+  .hint{ font-size:11.5px; color:var(--bp-text-dim); line-height:1.4; margin:0; }
+
+  .readout{
+    font-family:var(--font-mono); font-size:12px; background:var(--bp-bg-deep); border:1px solid var(--bp-line);
+    border-radius:5px; padding:10px; color:var(--bp-cyan); white-space:pre-wrap; line-height:1.55; min-height:20px;
+  }
+  .readout b{ color:var(--bp-amber); }
+  .readout .muted{ color:var(--bp-text-dim); }
+  .readout .warn{ color:var(--bp-amber); }
+
+  .legend-item{ display:flex; align-items:center; gap:8px; font-size:12px; font-family:var(--font-mono); color:var(--bp-text-dim); }
+  .legend-swatch{ width:14px; height:14px; border-radius:2px; border:1px solid rgba(255,255,255,.25); flex-shrink:0; }
+
+  .result-list{ list-style:none; margin:0; padding:0; max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  .result-list li{
+    font-family:var(--font-mono); font-size:11.5px; padding:7px 8px; background:var(--bp-bg-deep);
+    border:1px solid var(--bp-line); border-radius:4px; cursor:pointer; display:flex; flex-direction:column; gap:2px;
+  }
+  .result-list li:hover{ border-color:var(--bp-cyan); }
+  .result-list li .row1{ display:flex; justify-content:space-between; gap:6px; }
+  .result-list li .d{ color:var(--bp-amber); }
+  .result-list li .tipo-tag{ font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
+  .result-list li .tipo-tag.farmacia{ color:var(--bp-green); }
+  .result-list li .tipo-tag.laboratorio{ color:var(--bp-purple); }
+
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; font-family:var(--font-mono); font-size:12px; }
+  .stat-grid .cell{ background:var(--bp-bg-deep); border:1px solid var(--bp-line); border-radius:4px; padding:7px 8px; }
+  .stat-grid .cell .k{ color:var(--bp-text-dim); font-size:10px; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:2px; }
+  .stat-grid .cell .v{ color:var(--bp-amber); font-weight:600; }
+
+  .bar-row{ display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; margin-top:3px; }
+  .bar-track{ flex:1; height:8px; background:var(--bp-bg-deep); border:1px solid var(--bp-line); border-radius:3px; overflow:hidden; }
+  .bar-fill{ height:100%; background:var(--bp-cyan); }
+
+  .geom-legend{ display:flex; flex-direction:column; gap:5px; font-family:var(--font-mono); font-size:11px; color:var(--bp-text-dim); }
+  .geom-legend .row{ display:flex; align-items:center; gap:8px; }
+  .geom-swatch{ width:16px; height:16px; flex-shrink:0; }
+  .geom-swatch.point{ border-radius:50%; }
+  .geom-swatch.line{ height:3px; margin-top:6px; margin-bottom:7px; }
+  .geom-swatch.poly{ border-radius:2px; border:2px dashed; background:transparent; }
+
+  #footer-bar{
+    flex-shrink:0; border-top:1px solid var(--bp-line); background:var(--bp-bg-deep);
+    font-family:var(--font-mono); font-size:11px; color:var(--bp-cyan); padding:8px 16px;
+    display:flex; justify-content:space-between; letter-spacing:.03em;
+  }
+  #footer-bar .sep{ color:var(--bp-line); margin:0 6px; }
+  #footer-bar .lbl{ color:var(--bp-text-dim); }
+
+  .leaflet-popup-content{ font-family:var(--font-body); font-size:13px; }
+  .hospital-pin{
+    width:28px; height:28px; border-radius:50%; background:var(--bp-red); border:3px solid #fff; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:13px;
+    box-shadow:0 0 0 3px rgba(255,122,110,0.35);
+  }
+
+  /* =====================================================================
+     PAINEL DE ROTA (Leaflet Routing Machine) — tema escuro, texto maior
+     e mais espaçado para ficar legível sobre o mapa.
+  ===================================================================== */
+  .leaflet-routing-container{
+    background: var(--bp-panel) !important;
+    color: var(--bp-text) !important;
+    border: 1px solid var(--bp-line) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.55) !important;
+    font-family: var(--font-body) !important;
+    font-size: 13.5px !important;
+    line-height: 1.45 !important;
+    padding: 10px 10px 6px 10px !important;
+    width: 300px !important;
+    max-height: 68vh !important;
+    overflow-y: auto !important;
+    margin-top: 10px !important;
+  }
+  .leaflet-routing-container::-webkit-scrollbar{ width: 8px; }
+  .leaflet-routing-container::-webkit-scrollbar-thumb{ background: var(--bp-line); border-radius: 4px; }
+
+  /* Esconde os campos de início/fim editáveis (redundantes com a lista de
+     passos abaixo, e eram a linha espremida/difícil de ler no topo). */
+  .leaflet-routing-geocoders{ display: none !important; }
+
+  .leaflet-routing-container h2, .leaflet-routing-container h3{
+    font-family: var(--font-display) !important;
+    color: var(--bp-cyan) !important;
+    font-size: 14.5px !important;
+    font-weight: 700 !important;
+    margin: 2px 0 8px 0 !important;
+    padding-bottom: 7px !important;
+    border-bottom: 1px solid var(--bp-line) !important;
+  }
+  .leaflet-routing-alt{
+    background: transparent !important;
+    color: var(--bp-text) !important;
+    max-height: none !important;
+  }
+  .leaflet-routing-alt table{ width: 100% !important; border-collapse: collapse !important; }
+  .leaflet-routing-alt tr{ border-bottom: 1px solid var(--bp-line-soft) !important; }
+  .leaflet-routing-alt tr:hover{ background: rgba(126,200,227,0.08) !important; }
+  .leaflet-routing-alt td{
+    padding: 8px 6px !important;
+    vertical-align: middle !important;
+    color: var(--bp-text) !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    border: none !important;
+  }
+  .leaflet-routing-alt td:first-child{
+    width: 24px;
+    text-align: center;
+    color: var(--bp-cyan) !important;
+    font-weight: 700 !important;
+  }
+  .leaflet-routing-alt td:last-child{
+    color: var(--bp-amber) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    text-align: right !important;
+    white-space: nowrap !important;
+    padding-left: 8px !important;
+  }
+  .leaflet-routing-icon{
+    filter: invert(1) grayscale(1) brightness(1.9) contrast(1.05) !important;
+  }
+  .leaflet-routing-container a{ color: var(--bp-cyan) !important; }
+  .leaflet-routing-alt-minimized{
+    background: var(--bp-panel-alt) !important; color: var(--bp-cyan) !important;
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="sidebar">
+  <div id="sidebar-scroll">
+    <header class="title-block">
+      <div class="eyebrow">WebGIS Saúde · protótipo</div>
+      <h1>Farmácias &amp; Laboratórios próximos ao Hospital</h1>
+      <p>Belo Horizonte · localização de serviços de saúde a partir de um hospital de referência.</p>
+    </header>
+
+    <!-- §00 HOSPITAL DE REFERÊNCIA -->
+    <details class="section" open>
+      <summary><span class="tag">§00</span> Hospital de Referência</summary>
+      <div class="section-body">
+        <label class="field-label" for="hospitalInput">Nome ou endereço do hospital</label>
+        <input type="text" id="hospitalInput" placeholder="Ex: Hospital Odilon Behrens, Belo Horizonte">
+        <button class="btn-accent" onclick="buscarHospitalPorNome()">🔎 Buscar hospital</button>
+
+        <label class="field-label" style="margin-top:4px;">Atalhos</label>
+        <div class="btn-row">
+          <button class="btn-small" onclick="buscarHospitalPorNome('Santa Casa BH, Belo Horizonte')">Santa Casa</button>
+          <button class="btn-small" onclick="buscarHospitalPorNome('Hospital das Clínicas UFMG, Belo Horizonte')">HC-UFMG</button>
+          <button class="btn-small" onclick="buscarHospitalPorNome('Hospital Municipal Odilon Behrens, Belo Horizonte')">Odilon Behrens</button>
+        </div>
+
+        <div id="hospitalReadout" class="readout">Busque um hospital para começar.</div>
+        <p class="hint">A localização vem de geocodificação real (MapTiler). As farmácias e laboratórios são buscados no OpenStreetMap (dados reais); se nenhum for encontrado na área, o app usa dados simulados como alternativa e avisa isso claramente.</p>
+      </div>
+    </details>
+
+    <!-- §01 NAVEGAÇÃO -->
+    <details class="section">
+      <summary><span class="tag">§01</span> Navegação &amp; Mapa Base</summary>
+      <div class="section-body">
+        <label class="field-label" for="basemapSelect">Tipo de mapa</label>
+        <select id="basemapSelect" onchange="trocarBasemap(this.value)">
+          <option value="streets">Ruas (MapTiler)</option>
+          <option value="sat">Satélite (MapTiler)</option>
+          <option value="topo">Topográfico (MapTiler)</option>
+          <option value="osm">Ruas (OpenStreetMap · reserva sem chave)</option>
+        </select>
+
+        <label class="field-label">Camadas habilitadas</label>
+        <div class="checkbox-row"><input type="checkbox" id="chkHospital" checked onchange="toggleLayer('hospital', this.checked)"><label for="chkHospital">Hospital (ponto)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkFarmaciaLayer" checked onchange="toggleLayer('farmacias', this.checked)"><label for="chkFarmaciaLayer">Farmácias (pontos)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkLaboratorioLayer" checked onchange="toggleLayer('laboratorios', this.checked)"><label for="chkLaboratorioLayer">Laboratórios de radiografia (pontos)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkBuffer" checked onchange="toggleLayer('buffer', this.checked)"><label for="chkBuffer">Raio de busca (polígono)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkArea" checked onchange="toggleLayer('area', this.checked)"><label for="chkArea">Área de abrangência (polígono)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkVia" checked onchange="toggleLayer('via', this.checked)"><label for="chkVia">Via de referência (linha)</label></div>
+
+        <div class="geom-legend" style="margin-top:4px;">
+          <div class="row"><span class="geom-swatch point" style="background:#ff7a6e"></span>Ponto — hospital, farmácias, laboratórios</div>
+          <div class="row"><span class="geom-swatch line" style="border-top:3px solid #7ec8e3"></span>Linha — via de referência</div>
+          <div class="row"><span class="geom-swatch poly" style="border-color:#b389f0"></span>Polígono — raio de busca e área de abrangência</div>
+        </div>
+
+        <p class="hint">Zoom e pan são nativos do mapa (scroll, arrastar ou os controles +/– no canto superior esquerdo).</p>
+      </div>
+    </details>
+
+    <!-- §02 GEOLOCALIZAÇÃO E ROTA -->
+    <details class="section">
+      <summary><span class="tag">§02</span> Geolocalização &amp; Rota</summary>
+      <div class="section-body">
+        <button class="btn-accent" onclick="obterLocalizacao()">📍 Usar minha localização</button>
+        <button id="btnModoMarcador" class="btn-ghost" onclick="alternarModoMarcador()">✛ Adicionar marcador (clique no mapa)</button>
+        <button onclick="limparMarcadores()">🗑 Limpar marcadores</button>
+        <div class="btn-row">
+          <button onclick="tracarRota()">🚗 Rota entre marcadores</button>
+          <button onclick="limparRota()">✕ Limpar rota</button>
+        </div>
+        <p class="hint">Clique num item da lista de resultados (§04) para traçar automaticamente a rota do hospital até aquele estabelecimento. Ou ative "Adicionar marcador", clique em dois pontos do mapa e use "Rota entre marcadores".</p>
+      </div>
+    </details>
+
+    <!-- §03 CLASSIFICAÇÃO -->
+    <details class="section">
+      <summary><span class="tag">§03</span> Classificação por Distância</summary>
+      <div class="section-body">
+        <label class="field-label" for="classMethod">Método</label>
+        <select id="classMethod">
+          <option value="quantil">Quantis (mesma quantidade por classe)</option>
+          <option value="intervalo">Intervalos iguais</option>
+        </select>
+        <button class="btn-accent" onclick="aplicarClassificacao()">🎨 Classificar por distância ao hospital</button>
+        <div id="legendaClassificacao" style="display:flex; flex-direction:column; gap:5px; margin-top:2px;"></div>
+        <p class="hint">Recolore farmácias e laboratórios carregados no mapa conforme a distância até o hospital. Rode uma busca em §04 primeiro para ter pontos no mapa.</p>
+      </div>
+    </details>
+
+    <!-- §04 FILTROS DE PROXIMIDADE -->
+    <details class="section" open>
+      <summary><span class="tag">§04</span> Filtro de Proximidade</summary>
+      <div class="section-body">
+        <label class="field-label">Categoria</label>
+        <div class="checkbox-row"><input type="checkbox" id="chkCatFarmacia" checked><label for="chkCatFarmacia">Farmácias</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkCatLaboratorio" checked><label for="chkCatLaboratorio">Laboratórios de radiografia</label></div>
+
+        <label class="field-label" for="raioInput">Raio de busca a partir do hospital</label>
+        <div class="btn-row">
+          <button class="btn-small" onclick="definirRaio(200)">200 m</button>
+          <button class="btn-small" onclick="definirRaio(500)">500 m</button>
+          <button class="btn-small" onclick="definirRaio(1000)">1 km</button>
+          <button class="btn-small" onclick="definirRaio(2000)">2 km</button>
+        </div>
+        <input type="number" id="raioInput" value="1000" min="50" step="50" max="4000"> <span class="hint" style="margin-top:-6px;">metros (dados carregados num raio fixo de 4 km — veja §00)</span>
+
+        <label class="field-label" for="ordenarSelect">Ordenar resultados por</label>
+        <select id="ordenarSelect">
+          <option value="distancia">Proximidade (menor distância)</option>
+          <option value="alfabetica">Ordem alfabética</option>
+        </select>
+
+        <button class="btn-accent" onclick="buscarProximos()">🔍 Buscar farmácias e laboratórios</button>
+        <div id="filtroReadout" class="readout">Busque um hospital em §00 primeiro.</div>
+        <ul id="filtroLista" class="result-list"></ul>
+      </div>
+    </details>
+
+    <!-- §05 CONSULTAS ESPACIAIS -->
+    <details class="section">
+      <summary><span class="tag">§05</span> Consultas Espaciais (Query)</summary>
+      <div class="section-body">
+        <p class="hint">Operadores topológicos aplicados às geometrias do protótipo: o ponto do hospital, o polígono da área de abrangência, o polígono do raio de busca e a linha da via de referência.</p>
+        <button onclick="verificarHospitalNaArea()">📦 Hospital está contido na área de abrangência?</button>
+        <button onclick="verificarRaioContidoArea()">⊆ Raio de busca está contido na área de abrangência?</button>
+        <button onclick="verificarRaioInterceptaVia()">✕ Raio de busca intercepta a via de referência?</button>
+        <div id="queryReadout" class="readout">Nenhuma consulta executada.</div>
+      </div>
+    </details>
+
+    <!-- §06 ESTATÍSTICA -->
+    <details class="section">
+      <summary><span class="tag">§06</span> Análise Estatística</summary>
+      <div class="section-body">
+        <button class="btn-accent" onclick="analiseEstatistica()">📊 Calcular estatísticas da busca atual</button>
+        <div id="statGrid" class="stat-grid"></div>
+        <div id="statPorTipo"></div>
+        <p class="hint">Calculada sobre o último resultado de busca (§04). Rode uma busca antes.</p>
+      </div>
+    </details>
+  </div>
+
+  <div id="footer-bar">
+    <span><span class="lbl">LAT/LON</span> <span id="coordReadout">—</span></span>
+    <span class="sep">|</span>
+    <span><span class="lbl">ZOOM</span> <span id="zoomReadout">14</span></span>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+<script>
+// =====================================================================
+// 1. INICIALIZAÇÃO DO MAPA — Zoom e Pan são nativos do Leaflet
+// =====================================================================
+const CENTRO_BH = [-19.9191, -43.9386];
+const map = L.map('map', { zoomControl: true }).setView(CENTRO_BH, 13);
+
+// =====================================================================
+// 2. TIPOS DE MAPA (basemaps) — MapTiler como provedor principal (3 estilos)
+// =====================================================================
+// Cole sua chave gratuita do MapTiler abaixo, entre as aspas.
+// Criada em https://cloud.maptiler.com/account/keys/ — cota grátis: 100.000 req/mês.
+// Lembre de restringir "Allowed HTTP origins" (ex: 127.0.0.1:5501, localhost:5501)
+// e ajustar sempre que a porta do Live Server mudar.
+const MAPTILER_KEY = 'cE2FrfoB1np4w74qYL07';
+
+const MAPTILER_ATTR = '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; OpenStreetMap contributors';
+// checagem robusta: basta a chave não estar vazia (evita o bug de comparar com um placeholder)
+const temChaveMapTiler = MAPTILER_KEY.trim().length > 0;
+
+const basemaps = {
+  streets: L.tileLayer(`https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`, {
+    maxZoom: 20, tileSize: 256, attribution: MAPTILER_ATTR
+  }),
+  sat: L.tileLayer(`https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`, {
+    maxZoom: 20, tileSize: 256, attribution: MAPTILER_ATTR
+  }),
+  topo: L.tileLayer(`https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`, {
+    maxZoom: 20, tileSize: 256, attribution: MAPTILER_ATTR
+  }),
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+  })
+};
+
+let basemapAtivo = temChaveMapTiler ? 'streets' : 'osm';
+basemaps[basemapAtivo].addTo(map);
+
+if (!temChaveMapTiler) {
+  document.getElementById('basemapSelect').value = 'osm';
+  const aviso = document.createElement('div');
+  aviso.className = 'readout';
+  aviso.style.marginBottom = '10px';
+  aviso.innerHTML = '⚠ Chave do MapTiler não configurada. Usando OpenStreetMap como reserva, e a busca de hospital por nome (§00) não vai funcionar até você colar a chave em <b>MAPTILER_KEY</b>.';
+  document.querySelector('#sidebar-scroll').insertBefore(aviso, document.querySelector('details.section'));
+}
+
+function trocarBasemap(chave) {
+  if (chave === basemapAtivo) return;
+  if ((chave === 'streets' || chave === 'sat' || chave === 'topo') && !temChaveMapTiler) {
+    alert('Configure sua chave gratuita do MapTiler em MAPTILER_KEY (no início do script) para usar este mapa.');
+    document.getElementById('basemapSelect').value = basemapAtivo;
+    return;
+  }
+  map.removeLayer(basemaps[basemapAtivo]);
+  basemapAtivo = chave;
+  basemaps[basemapAtivo].addTo(map);
+}
+
+// =====================================================================
+// 3. HOSPITAL — busca por nome/endereço via geocodificação MapTiler
+// =====================================================================
+let hospitalAtual = null; // { nome, endereco, lat, lng }
+let hospitalMarker = null;
+
+function hospitalDivIcon() {
+  return L.divIcon({ className: '', html: '<div class="hospital-pin">H</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+}
+
+// Belo Horizonte, bbox aproximada: south,west,north,east
+const BH_BBOX = '-20.05,-44.10,-19.75,-43.85';
+const PALAVRAS_IGNORADAS = ['hospital', 'clinica', 'clínica', 'de', 'da', 'do', 'dos', 'das', 'em', 'e', 'municipal', 'pronto', 'socorro', 'ps', 'hps'];
+
+// ---------------------------------------------------------------------
+// CORREÇÃO: termos digitados sem acento (ex: "joao") agora batem com
+// nomes acentuados no OSM (ex: "João"), porque cada vogal do termo de
+// busca é trocada por uma classe de caracteres que aceita as duas formas.
+// ---------------------------------------------------------------------
+function palavraParaClasseAcentos(w) {
+  const mapa = { a: '[aàáâã]', e: '[eèéê]', i: '[iìíî]', o: '[oòóôõ]', u: '[uùúû]', c: '[cç]' };
+  return w.split('').map(ch => mapa[ch.toLowerCase()] || ch).join('');
+}
+
+// ---------------------------------------------------------------------
+// CORREÇÃO: converte número arábico para romano, para que buscas como
+// "joao 23" também casem com nomes escritos "João XXIII" no OSM.
+// ---------------------------------------------------------------------
+function arabicoParaRomano(num) {
+  const tabela = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+  ];
+  let n = num, resultado = '';
+  if (!Number.isInteger(n) || n <= 0 || n > 3999) return null;
+  for (const [valor, simbolo] of tabela) {
+    while (n >= valor) { resultado += simbolo; n -= valor; }
+  }
+  return resultado;
+}
+
+function construirFiltrosNome(query) {
+  const palavras = query
+    .replace(/[.*+?^${}()|[\]\\]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 1 && !PALAVRAS_IGNORADAS.includes(w.toLowerCase()));
+  if (!palavras.length) return '';
+
+  // Cada palavra vira um filtro ["name"~"padrão",i] separado. O Overpass
+  // aplica múltiplos filtros na mesma consulta como E (AND) — por isso
+  // NÃO precisamos (e não podemos) usar lookahead "(?=...)": o motor de
+  // regex do Overpass é o RE2, que não suporta lookahead/lookbehind/
+  // backreferences.
+  return palavras.map(w => {
+    let padrao;
+    if (/^\d+$/.test(w)) {
+      const romano = arabicoParaRomano(parseInt(w, 10));
+      padrao = romano ? `${w}|${romano}` : w;
+    } else {
+      padrao = palavraParaClasseAcentos(w);
+    }
+    return `["name"~"${padrao}",i]`;
+  }).join('');
+}
+
+// ---------------------------------------------------------------------
+// CORREÇÃO PRINCIPAL: helper com retry em múltiplos espelhos do Overpass.
+// O servidor overpass-api.de é público e gratuito, então frequentemente
+// devolve 429 (rate limit) ou timeout numa chamada isolada. Antes, uma
+// única falha de rede já derrubava a busca inteira e acionava o
+// fallback de dados SIMULADOS (farmácias inventadas, posições aleatórias).
+// Agora tentamos até 3 espelhos diferentes antes de desistir de verdade.
+// ---------------------------------------------------------------------
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.openstreetmap.ru/api/interpreter'
+];
+
+async function consultarOverpass(query) {
+  for (const base of OVERPASS_MIRRORS) {
+    try {
+      const url = base + '?data=' + encodeURIComponent(query);
+      const resp = await fetch(url);
+      if (!resp.ok) continue; // 429 / 504 / etc — tenta o próximo espelho
+      const data = await resp.json();
+      return data;
+    } catch (err) {
+      continue; // erro de rede — tenta o próximo espelho
+    }
+  }
+  return null; // todos os espelhos falharam de verdade
+}
+
+// 1) Busca o hospital como POI real no OpenStreetMap (mais preciso para nomes de estabelecimento)
+async function buscarHospitalOverpass(query) {
+  const filtrosNome = construirFiltrosNome(query);
+  if (!filtrosNome) return null;
+  const overpassQuery = `[out:json][timeout:25];(
+    node["amenity"="hospital"]${filtrosNome}(${BH_BBOX});
+    way["amenity"="hospital"]${filtrosNome}(${BH_BBOX});
+  );out center 1;`;
+
+  const data = await consultarOverpass(overpassQuery);
+  if (!data) return null;
+  const el = (data.elements || [])[0];
+  if (!el) return null;
+  const lat = el.lat ?? el.center?.lat;
+  const lng = el.lon ?? el.center?.lon;
+  if (!lat || !lng) return null;
+  const enderecoPartes = [el.tags['addr:street'], el.tags['addr:housenumber'], el.tags['addr:suburb']].filter(Boolean);
+  return {
+    nome: el.tags.name || query,
+    endereco: enderecoPartes.length ? enderecoPartes.join(', ') : 'Endereço não informado no OSM',
+    lat, lng, fonte: 'osm'
+  };
+}
+
+// 2) Plano B: geocodifica como endereço via MapTiler (menos preciso para nomes de POI)
+async function buscarHospitalGeocoding(query) {
+  if (!temChaveMapTiler) return null;
+  try {
+    const buscaCompleta = query.toLowerCase().includes('belo horizonte') ? query : `${query}, Belo Horizonte, Brasil`;
+    const url = `https://api.maptiler.com/geocoding/${encodeURIComponent(buscaCompleta)}.json?key=${MAPTILER_KEY}&limit=1&language=pt`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data.features || !data.features.length) return null;
+    const feat = data.features[0];
+    const [lng, lat] = feat.center;
+    return { nome: query, endereco: feat.place_name || feat.text || '', lat, lng, fonte: 'geocoding' };
+  } catch (err) { return null; }
+}
+
+async function buscarHospitalPorNome(queryForcada) {
+  const query = (queryForcada || document.getElementById('hospitalInput').value || '').trim();
+  if (!query) { alert('Digite o nome ou endereço do hospital.'); return; }
+
+  // Usa só a parte antes da primeira vírgula (o nome do lugar) para achar o POI
+  // no OSM — cidade/estado/país já são filtrados pelo BH_BBOX e, se entrarem
+  // na busca por nome, quebram o match (a tag "name" raramente contém "Belo
+  // Horizonte, Minas Gerais, Brasil"). O endereço completo continua sendo
+  // usado no plano B (geocodificação).
+  const nomeParaOSM = query.split(',')[0].trim();
+
+  document.getElementById('hospitalInput').value = query;
+  document.getElementById('hospitalReadout').textContent = `Buscando "${nomeParaOSM}" no OpenStreetMap…`;
+
+  let resultado = await buscarHospitalOverpass(nomeParaOSM);
+
+  if (!resultado) {
+    document.getElementById('hospitalReadout').textContent = `Não achei "${nomeParaOSM}" como estabelecimento no OSM — tentando geocodificar o endereço…`;
+    resultado = await buscarHospitalGeocoding(query);
+  }
+
+  if (!resultado) {
+    document.getElementById('hospitalReadout').innerHTML =
+      `<span class="warn">Nenhum resultado para "${query}".</span> Tente um nome mais específico (ex: "Risoleta Neves") ou o endereço completo.`;
+    return;
+  }
+
+  await carregarHospital(resultado);
+  document.getElementById('hospitalReadout').innerHTML =
+    (resultado.fonte === 'osm'
+      ? `<span style="color:var(--bp-green)">✓ Encontrado no OpenStreetMap</span>\n`
+      : `<span class="warn">⚠ Não achado como POI no OSM — localização aproximada por geocodificação de endereço</span>\n`) +
+    `<b>${resultado.nome}</b>\n${resultado.endereco}`;
+}
+
+async function carregarHospital(h) {
+  hospitalAtual = h;
+
+  if (hospitalMarker) map.removeLayer(hospitalMarker);
+  if (areaCoberturaLayer) map.removeLayer(areaCoberturaLayer);
+  if (viaLineLayer) map.removeLayer(viaLineLayer);
+  if (bufferLayer) map.removeLayer(bufferLayer);
+  document.getElementById('filtroLista').innerHTML = '';
+  document.getElementById('queryReadout').textContent = 'Nenhuma consulta executada.';
+  document.getElementById('legendaClassificacao').innerHTML = '';
+  document.getElementById('statGrid').innerHTML = '';
+  document.getElementById('statPorTipo').innerHTML = '';
+  ultimaBusca = [];
+  bufferGeom = null;
+
+  hospitalMarker = L.marker([h.lat, h.lng], { icon: hospitalDivIcon() })
+    .bindPopup(`<b>${h.nome}</b><br>${h.endereco}`)
+    .addTo(map);
+
+  gerarGeometriasApoio(h);
+  areaCoberturaLayer = L.geoJSON(areaCoberturaGeom, { style: { color: '#b389f0', weight: 2, dashArray: '5 4', fillOpacity: 0.05 } }).addTo(map);
+  viaLineLayer = L.geoJSON(viaLineGeom, { style: { color: '#7ec8e3', weight: 3, dashArray: '2 6' } }).addTo(map);
+
+  document.getElementById('hospitalReadout').innerHTML = `<b>${h.nome}</b>\n${h.endereco}`;
+  map.setView([h.lat, h.lng], 15);
+
+  await carregarEstabelecimentos(h);
+  aplicarVisibilidadeCamadas();
+}
+
+// =====================================================================
+// 4. ESTABELECIMENTOS — busca real no OpenStreetMap (Overpass), com
+//    fallback simulado apenas se nada real for encontrado na área
+// =====================================================================
+const RAIO_CARGA_METROS = 4000;
+const NOMES_FARMACIA_SIM = ['Farmácia Central', 'Drogaria Bem Estar', 'Farmácia Vida Saudável', 'Farmácia Popular', 'Drogaria São Rafael', 'Farmácia Cruz Azul'];
+const NOMES_LABORATORIO_SIM = ['Instituto de Imagem BH', 'Laboratório Raio-X Precisão', 'Centro de Diagnóstico por Imagem', 'Laboratório Radiológico Santa Fé', 'Clínica de Radiografia Horizonte'];
+
+let camadaEstabelecimentos = null;
+let estabelecimentosData = null;
+let areaCoberturaGeom = null, areaCoberturaLayer = null;
+let viaLineGeom = null, viaLineLayer = null;
+let bufferGeom = null, bufferLayer = null;
+let ultimaBusca = [];
+
+function estiloEstabelecimento(tipo) {
+  if (tipo === 'Farmácia') return { radius: 7, fillColor: '#6bcf9f', color: '#0f2846', weight: 1, fillOpacity: 0.9 };
+  return { radius: 7, fillColor: '#b389f0', color: '#0f2846', weight: 1, fillOpacity: 0.9 };
+}
+
+function gerarEstabelecimentosSimulados(hospital) {
+  const bbox = [hospital.lng - 0.02, hospital.lat - 0.016, hospital.lng + 0.02, hospital.lat + 0.016];
+  const pontos = turf.randomPoint(18, { bbox });
+  let iF = 0, iL = 0;
+  turf.propEach(pontos, function (prop) {
+    const isFarmacia = Math.random() > 0.45;
+    if (isFarmacia) { prop.tipo = 'Farmácia'; prop.nome = NOMES_FARMACIA_SIM[iF % NOMES_FARMACIA_SIM.length]; iF++; }
+    else { prop.tipo = 'Laboratório'; prop.nome = NOMES_LABORATORIO_SIM[iL % NOMES_LABORATORIO_SIM.length]; iL++; }
+    prop.horario = Math.random() > 0.5 ? 'Aberto 24h' : 'Comercial · 8h–18h';
+  });
+  return pontos;
+}
+
+async function carregarEstabelecimentos(hospital) {
+  document.getElementById('filtroReadout').innerHTML = 'Buscando farmácias e laboratórios reais no OpenStreetMap…';
+
+  let itens = [];
+  const overpassQuery = `[out:json][timeout:25];(
+    node["amenity"="pharmacy"](around:${RAIO_CARGA_METROS},${hospital.lat},${hospital.lng});
+    node["healthcare"="laboratory"](around:${RAIO_CARGA_METROS},${hospital.lat},${hospital.lng});
+    node["healthcare:speciality"~"radiology"](around:${RAIO_CARGA_METROS},${hospital.lat},${hospital.lng});
+  );out body;`;
+
+  const data = await consultarOverpass(overpassQuery);
+  if (data) {
+    itens = (data.elements || [])
+      .filter(el => el.lat && el.lon)
+      .map(el => ({
+        tipo: el.tags.amenity === 'pharmacy' ? 'Farmácia' : 'Laboratório',
+        nome: el.tags.name || (el.tags.amenity === 'pharmacy' ? 'Farmácia (sem nome no OSM)' : 'Laboratório (sem nome no OSM)'),
+        lat: el.lat, lng: el.lon,
+        horario: el.tags.opening_hours || 'Horário não informado no OSM'
+      }));
+  }
+
+  let origemReal = itens.length > 0;
+  if (!origemReal) {
+    const fc = gerarEstabelecimentosSimulados(hospital);
+    itens = fc.features.map(f => ({ tipo: f.properties.tipo, nome: f.properties.nome, lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], horario: f.properties.horario }));
+  }
+
+  estabelecimentosData = turf.featureCollection(itens.map(it => turf.point([it.lng, it.lat], { tipo: it.tipo, nome: it.nome, horario: it.horario })));
+
+  if (camadaEstabelecimentos) map.removeLayer(camadaEstabelecimentos);
+  camadaEstabelecimentos = L.geoJSON(estabelecimentosData, {
+    pointToLayer: (feature, latlng) => L.circleMarker(latlng, estiloEstabelecimento(feature.properties.tipo)),
+    onEachFeature: (feature, layer) => layer.bindPopup(`<b>${feature.properties.nome}</b><br>${feature.properties.tipo}<br>${feature.properties.horario}`)
+  }).addTo(map);
+
+  const nF = itens.filter(i => i.tipo === 'Farmácia').length;
+  const nL = itens.filter(i => i.tipo === 'Laboratório').length;
+  document.getElementById('filtroReadout').innerHTML = origemReal
+    ? `<b>${itens.length}</b> estabelecimento(s) reais (OpenStreetMap) carregados num raio de ${RAIO_CARGA_METROS} m: ${nF} farmácia(s), ${nL} laboratório(s). Ajuste o raio abaixo e clique em "Buscar".`
+    : `<span class="warn">⚠ Nenhum dado real (OSM) encontrado nesse raio — exibindo ${itens.length} ponto(s) simulados para demonstração.</span> Ajuste o raio abaixo e clique em "Buscar".`;
+}
+
+// =====================================================================
+// 5. GEOMETRIAS DE APOIO — via de referência (linha), área de abrangência (polígono)
+// =====================================================================
+function gerarGeometriasApoio(hospital) {
+  const c = [hospital.lng, hospital.lat];
+  areaCoberturaGeom = turf.polygon([[
+    [c[0] - 0.020, c[1] + 0.014], [c[0] + 0.010, c[1] + 0.020], [c[0] + 0.026, c[1] + 0.002],
+    [c[0] + 0.008, c[1] - 0.022], [c[0] - 0.022, c[1] - 0.016], [c[0] - 0.028, c[1] + 0.004],
+    [c[0] - 0.020, c[1] + 0.014]
+  ]]);
+  viaLineGeom = turf.lineString([
+    [c[0] - 0.032, c[1] - 0.018], [c[0] - 0.010, c[1] + 0.003], [c[0] + 0.014, c[1] + 0.024], [c[0] + 0.034, c[1] + 0.032]
+  ]);
+}
+
+function toggleLayer(nome, ligado) {
+  const alvo = { hospital: hospitalMarker, buffer: bufferLayer, area: areaCoberturaLayer, via: viaLineLayer }[nome];
+  if (nome === 'farmacias' || nome === 'laboratorios') { aplicarVisibilidadeCamadas(); return; }
+  if (!alvo) return;
+  ligado ? map.addLayer(alvo) : map.removeLayer(alvo);
+}
+
+function aplicarVisibilidadeCamadas() {
+  if (!camadaEstabelecimentos) return;
+  const mostrarFarmacia = document.getElementById('chkFarmaciaLayer').checked;
+  const mostrarLab = document.getElementById('chkLaboratorioLayer').checked;
+  camadaEstabelecimentos.eachLayer(layer => {
+    const tipo = layer.feature.properties.tipo;
+    const deveMostrar = (tipo === 'Farmácia' && mostrarFarmacia) || (tipo === 'Laboratório' && mostrarLab);
+    layer.setStyle({ opacity: deveMostrar ? 1 : 0, fillOpacity: deveMostrar ? 0.9 : 0 });
+  });
+  if (!map.hasLayer(camadaEstabelecimentos)) map.addLayer(camadaEstabelecimentos);
+}
+
+// =====================================================================
+// 6. GEOLOCALIZAÇÃO
+// =====================================================================
+let userMarker = null, userAccuracy = null;
+window.userLoc = null;
+
+function obterLocalizacao() {
+  map.locate({ setView: false, maxZoom: 16, enableHighAccuracy: true });
+}
+map.on('locationfound', function (e) {
+  if (userMarker) map.removeLayer(userMarker);
+  if (userAccuracy) map.removeLayer(userAccuracy);
+  userMarker = L.marker(e.latlng).addTo(map).bindPopup('Você está aqui').openPopup();
+  userAccuracy = L.circle(e.latlng, { radius: e.accuracy / 2, color: '#ffb100', fillOpacity: 0.08 }).addTo(map);
+  window.userLoc = [e.latlng.lng, e.latlng.lat];
+});
+map.on('locationerror', function (e) {
+  alert('Não foi possível obter a localização: ' + e.message);
+});
+
+// =====================================================================
+// 7. MARCADORES POR CLIQUE + ROTA
+// =====================================================================
+let modoMarcador = false;
+let pontosClicados = [];
+let marcadoresLayer = L.layerGroup().addTo(map);
+let routingControl = null;
+
+function alternarModoMarcador() {
+  modoMarcador = !modoMarcador;
+  document.getElementById('btnModoMarcador').classList.toggle('active', modoMarcador);
+  map.getContainer().style.cursor = modoMarcador ? 'crosshair' : '';
+}
+
+map.on('click', function (e) {
+  if (!modoMarcador) return;
+  L.marker(e.latlng).addTo(marcadoresLayer)
+    .bindPopup(`Marcador<br>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`);
+  pontosClicados.push(e.latlng);
+  if (pontosClicados.length > 2) pontosClicados.shift();
+});
+
+function limparMarcadores() {
+  marcadoresLayer.clearLayers();
+  pontosClicados = [];
+}
+
+// ---------------------------------------------------------------------
+// TRADUÇÃO DAS INSTRUÇÕES DE ROTA
+// A biblioteca leaflet-routing-machine só traz o pacote de idioma "en"
+// embutido — a opção language:'pt' não tem efeito (não existe pacote pt
+// no core da lib), por isso as instruções sempre saíam em inglês. Em vez
+// de reimplementar o formatter interno da lib (arriscado / difícil de
+// validar sem o código-fonte exato), traduzimos o texto já renderizado
+// no painel, casando com os padrões de frase conhecidos do formatter em
+// inglês (ex.: "Turn left onto X", "Head northwest on X").
+// ---------------------------------------------------------------------
+const DIRECOES_PT = {
+  north: 'norte', northeast: 'nordeste', east: 'leste', southeast: 'sudeste',
+  south: 'sul', southwest: 'sudoeste', west: 'oeste', northwest: 'noroeste'
+};
+
+function traduzirInstrucao(textoOriginal) {
+  const t = textoOriginal.trim();
+  let m;
+
+  if ((m = t.match(/^You have arrived at your destination, on the (left|right)$/i))) {
+    return `Você chegou ao seu destino, à ${m[1].toLowerCase() === 'left' ? 'esquerda' : 'direita'}`;
+  }
+  if (/^You have arrived at your destination$/i.test(t)) return 'Você chegou ao seu destino';
+
+  if ((m = t.match(/^Waypoint (\d+) reached(?:, on the (left|right))?$/i))) {
+    const lado = m[2] ? (m[2].toLowerCase() === 'left' ? ', à esquerda' : ', à direita') : '';
+    return `Ponto de passagem ${m[1]} alcançado${lado}`;
+  }
+
+  if ((m = t.match(/^Enter the roundabout and take the (\d+)\w* exit(?: onto (.+))?$/i))) {
+    return `Entre na rotatória e pegue a ${m[1]}ª saída${m[2] ? ` na ${m[2]}` : ''}`;
+  }
+  if (/^Enter the roundabout$/i.test(t)) return 'Entre na rotatória';
+
+  if ((m = t.match(/^Head (\w+) on (.+)$/i))) return `Siga para ${DIRECOES_PT[m[1].toLowerCase()] || m[1]} na ${m[2]}`;
+  if ((m = t.match(/^Head (\w+)$/i))) return `Siga para ${DIRECOES_PT[m[1].toLowerCase()] || m[1]}`;
+
+  if ((m = t.match(/^Continue onto (.+)$/i))) return `Continue na ${m[1]}`;
+  if ((m = t.match(/^Continue on (.+)$/i))) return `Continue na ${m[1]}`;
+  if (/^Continue$/i.test(t)) return 'Continue em frente';
+
+  if ((m = t.match(/^Make a U-turn and continue on (.+)$/i))) return `Faça o retorno e continue na ${m[1]}`;
+  if ((m = t.match(/^Make a U-turn onto (.+)$/i))) return `Faça o retorno na ${m[1]}`;
+  if (/^Make a U-turn$/i.test(t)) return 'Faça o retorno';
+
+  const padroesComRua = [
+    [/^Turn slight left onto (.+)$/i, 'Vire levemente à esquerda na '],
+    [/^Turn slight right onto (.+)$/i, 'Vire levemente à direita na '],
+    [/^Turn sharp left onto (.+)$/i, 'Vire fortemente à esquerda na '],
+    [/^Turn sharp right onto (.+)$/i, 'Vire fortemente à direita na '],
+    [/^Turn left onto (.+)$/i, 'Vire à esquerda na '],
+    [/^Turn right onto (.+)$/i, 'Vire à direita na '],
+    [/^Keep left onto (.+)$/i, 'Mantenha-se à esquerda na '],
+    [/^Keep right onto (.+)$/i, 'Mantenha-se à direita na '],
+    [/^Merge left onto (.+)$/i, 'Entre à esquerda na '],
+    [/^Merge right onto (.+)$/i, 'Entre à direita na '],
+    [/^Take the ramp on the left onto (.+)$/i, 'Pegue a rampa à esquerda na '],
+    [/^Take the ramp on the right onto (.+)$/i, 'Pegue a rampa à direita na '],
+    [/^At the end of the road, turn left onto (.+)$/i, 'No final da via, vire à esquerda na '],
+    [/^At the end of the road, turn right onto (.+)$/i, 'No final da via, vire à direita na '],
+    [/^At the fork, keep left onto (.+)$/i, 'Na bifurcação, mantenha-se à esquerda na '],
+    [/^At the fork, keep right onto (.+)$/i, 'Na bifurcação, mantenha-se à direita na ']
+  ];
+  for (const [re, prefixo] of padroesComRua) {
+    if ((m = t.match(re))) return prefixo + m[1];
+  }
+
+  const padroesSemRua = {
+    'Turn slight left': 'Vire levemente à esquerda',
+    'Turn slight right': 'Vire levemente à direita',
+    'Turn sharp left': 'Vire fortemente à esquerda',
+    'Turn sharp right': 'Vire fortemente à direita',
+    'Turn left': 'Vire à esquerda',
+    'Turn right': 'Vire à direita',
+    'Keep left': 'Mantenha-se à esquerda',
+    'Keep right': 'Mantenha-se à direita',
+    'Turn around': 'Faça o retorno'
+  };
+  if (padroesSemRua[t]) return padroesSemRua[t];
+
+  return traduzirPorPalavras(textoOriginal); // padrão exato não reconhecido — tenta tradução palavra a palavra
+}
+
+// ---------------------------------------------------------------------
+// Rede de segurança: quando a frase inteira não bate com nenhum dos
+// padrões acima (variações que a lib pode gerar e que não mapeamos),
+// troca palavra a palavra em vez de deixar a instrução em inglês puro.
+// O resultado pode não ficar 100% gramatical, mas é sempre melhor do
+// que mostrar a frase original sem tradução nenhuma.
+// ---------------------------------------------------------------------
+function traduzirPorPalavras(texto) {
+  const trocas = [
+    [/\bnorthwest\b/gi, 'noroeste'], [/\bnortheast\b/gi, 'nordeste'],
+    [/\bsouthwest\b/gi, 'sudoeste'], [/\bsoutheast\b/gi, 'sudeste'],
+    [/\bnorth\b/gi, 'norte'], [/\bsouth\b/gi, 'sul'], [/\beast\b/gi, 'leste'], [/\bwest\b/gi, 'oeste'],
+    [/\bMake a U-turn\b/gi, 'Faça o retorno'], [/\bU-turn\b/gi, 'retorno'],
+    [/\bend of the road\b/gi, 'final da via'],
+    [/\byou have arrived at\b/gi, 'você chegou a'], [/\byour destination\b/gi, 'seu destino'],
+    [/\bWaypoint\b/gi, 'Ponto de passagem'], [/\breached\b/gi, 'alcançado'],
+    [/\bEnter the roundabout\b/gi, 'Entre na rotatória'], [/\broundabout\b/gi, 'rotatória'], [/\bexit\b/gi, 'saída'],
+    [/\bTurn slight\b/gi, 'Vire levemente'], [/\bTurn sharp\b/gi, 'Vire fortemente'], [/\bTurn\b/gi, 'Vire'],
+    [/\bKeep\b/gi, 'Mantenha-se'], [/\bMerge\b/gi, 'Entre'], [/\bTake the ramp\b/gi, 'Pegue a rampa'], [/\bramp\b/gi, 'rampa'],
+    [/\bfork\b/gi, 'bifurcação'], [/\bHead\b/gi, 'Siga para'], [/\bContinue\b/gi, 'Continue'],
+    [/\bslight\b/gi, 'levemente'], [/\bsharp\b/gi, 'fortemente'],
+    [/\bleft\b/gi, 'esquerda'], [/\bright\b/gi, 'direita'],
+    [/\bonto\b/gi, 'na'], [/\bon the\b/gi, 'na'], [/\bon\b/gi, 'na'],
+    [/\band\b/gi, 'e'], [/\bat the\b/gi, 'na'], [/\bthe\b/gi, 'a']
+  ];
+  let resultado = texto;
+  trocas.forEach(([re, subst]) => { resultado = resultado.replace(re, subst); });
+  return resultado;
+}
+
+function traduzirPainelDeRota() {
+  const container = document.querySelector('.leaflet-routing-container');
+  if (!container) return;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+  const nos = [];
+  let no;
+  while ((no = walker.nextNode())) nos.push(no);
+  nos.forEach(n => {
+    if (!n.nodeValue || !n.nodeValue.trim()) return;
+    const traduzido = traduzirInstrucao(n.nodeValue);
+    if (traduzido !== n.nodeValue) n.nodeValue = traduzido;
+  });
+}
+
+function tracarRota(origemForcada, destinoForcado) {
+  if (!hospitalAtual) { alert('Busque um hospital primeiro (§00).'); return; }
+  if (routingControl) map.removeControl(routingControl);
+  let origem, destino;
+  if (origemForcada && destinoForcado) {
+    origem = origemForcada; destino = destinoForcado;
+  } else if (pontosClicados.length === 2) {
+    [origem, destino] = pontosClicados;
+  } else {
+    origem = L.latLng(hospitalAtual.lat, hospitalAtual.lng);
+    destino = L.latLng(hospitalAtual.lat - 0.01, hospitalAtual.lng - 0.01);
+  }
+  routingControl = L.Routing.control({
+    waypoints: [origem, destino],
+    routeWhileDragging: true,
+    language: 'pt',
+    router: L.Routing.osrmv1({
+      serviceUrl: 'https://router.project-osrm.org/route/v1',
+      profile: 'driving' // rota de carro
+    })
+  }).addTo(map);
+
+  // Traduz o painel assim que a rota chega (e de novo a cada recálculo,
+  // já que a lib re-renderiza o HTML internamente a cada 'routesfound').
+  routingControl.on('routesfound', function () {
+    setTimeout(traduzirPainelDeRota, 0);
+  });
+}
+
+function limparRota() {
+  if (routingControl) { map.removeControl(routingControl); routingControl = null; }
+}
+
+// =====================================================================
+// 8. CLASSIFICAÇÃO — quantis ou intervalos iguais, por distância ao hospital
+// =====================================================================
+function quebrasQuantil(valores, classes) {
+  const ordenado = [...valores].sort((a, b) => a - b);
+  const breaks = [];
+  for (let i = 1; i < classes; i++) breaks.push(ordenado[Math.floor((i / classes) * ordenado.length)]);
+  return breaks;
+}
+function quebrasIntervaloIgual(valores, classes) {
+  const min = Math.min(...valores), max = Math.max(...valores);
+  const passo = (max - min) / classes;
+  const breaks = [];
+  for (let i = 1; i < classes; i++) breaks.push(min + passo * i);
+  return breaks;
+}
+
+function aplicarClassificacao() {
+  if (!ultimaBusca.length) { alert('Rode uma busca em §04 primeiro.'); return; }
+  const metodo = document.getElementById('classMethod').value;
+  const distancias = ultimaBusca.map(r => r.distanciaKm);
+  const breaks = metodo === 'quantil' ? quebrasQuantil(distancias, 3) : quebrasIntervaloIgual(distancias, 3);
+  const cores = ['#6bcf9f', '#ffb100', '#ff7a6e'];
+
+  function corPorValor(v) {
+    if (v <= breaks[0]) return cores[0];
+    if (v <= breaks[1]) return cores[1];
+    return cores[2];
+  }
+  ultimaBusca.forEach(r => {
+    r.layer.setStyle({ fillColor: corPorValor(r.distanciaKm), color: '#0f2846', weight: 1, fillOpacity: 0.95 });
+  });
+
+  const fmt = km => (km * 1000).toFixed(0) + ' m';
+  const faixas = [`≤ ${fmt(breaks[0])}`, `${fmt(breaks[0])} – ${fmt(breaks[1])}`, `> ${fmt(breaks[1])}`];
+  document.getElementById('legendaClassificacao').innerHTML = cores.map((c, i) =>
+    `<div class="legend-item"><span class="legend-swatch" style="background:${c}"></span>${faixas[i]} do hospital</div>`
+  ).join('');
+}
+
+// =====================================================================
+// 9. FILTRO DE PROXIMIDADE — farmácias/laboratórios dentro do raio, ordenados
+// =====================================================================
+function definirRaio(m) { document.getElementById('raioInput').value = m; }
+
+function buscarProximos() {
+  if (!hospitalAtual || !camadaEstabelecimentos) { alert('Busque um hospital primeiro (§00).'); return; }
+  const h = hospitalAtual;
+  const hospitalPoint = turf.point([h.lng, h.lat]);
+  const raioM = Math.min(parseFloat(document.getElementById('raioInput').value) || 1000, RAIO_CARGA_METROS);
+  const raioKm = raioM / 1000;
+  const querFarmacia = document.getElementById('chkCatFarmacia').checked;
+  const querLab = document.getElementById('chkCatLaboratorio').checked;
+  const ordenarPor = document.getElementById('ordenarSelect').value;
+
+  if (bufferLayer) map.removeLayer(bufferLayer);
+  bufferGeom = turf.buffer(hospitalPoint, raioKm, { units: 'kilometers' });
+  bufferLayer = L.geoJSON(bufferGeom, { style: { color: '#ffb100', weight: 2, dashArray: '6 4', fillOpacity: 0.06 } });
+  if (document.getElementById('chkBuffer').checked) bufferLayer.addTo(map);
+
+  ultimaBusca = [];
+  camadaEstabelecimentos.eachLayer(function (layer) {
+    const feature = layer.feature;
+    const tipo = feature.properties.tipo;
+    if ((tipo === 'Farmácia' && !querFarmacia) || (tipo === 'Laboratório' && !querLab)) {
+      layer.setStyle({ opacity: 0, fillOpacity: 0 });
+      return;
+    }
+    const coords = feature.geometry.coordinates;
+    const dentro = turf.booleanPointInPolygon(turf.point(coords), bufferGeom);
+    if (dentro) {
+      const distanciaKm = turf.distance(hospitalPoint, turf.point(coords), { units: 'kilometers' });
+      layer.setStyle({ ...estiloEstabelecimento(tipo), color: '#ffffff', weight: 2 });
+      ultimaBusca.push({ layer, nome: feature.properties.nome, tipo, horario: feature.properties.horario, distanciaKm });
+    } else {
+      layer.setStyle({ opacity: 0, fillOpacity: 0 });
+    }
+  });
+
+  if (ordenarPor === 'distancia') ultimaBusca.sort((a, b) => a.distanciaKm - b.distanciaKm);
+  else ultimaBusca.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  const nFarmacia = ultimaBusca.filter(r => r.tipo === 'Farmácia').length;
+  const nLab = ultimaBusca.filter(r => r.tipo === 'Laboratório').length;
+  document.getElementById('filtroReadout').innerHTML =
+    `<b>${ultimaBusca.length}</b> resultado(s) em até <b>${raioM} m</b> do ${h.nome}.\n<span class="muted">${nFarmacia} farmácia(s) · ${nLab} laboratório(s)</span>`;
+
+  document.getElementById('filtroLista').innerHTML = ultimaBusca.map((r, idx) =>
+    `<li onclick='window.__irAoResultado(${idx})'>
+       <div class="row1"><span>${r.nome}</span><span class="d">${(r.distanciaKm * 1000).toFixed(0)} m</span></div>
+       <div class="tipo-tag ${r.tipo === 'Farmácia' ? 'farmacia' : 'laboratorio'}">${r.tipo} · ${r.horario}</div>
+     </li>`
+  ).join('');
+}
+
+window.__irAoResultado = function (idx) {
+  const r = ultimaBusca[idx];
+  if (!r) return;
+  const latlng = r.layer.getLatLng();
+  map.flyTo(latlng, 17);
+  r.layer.openPopup();
+  tracarRota(L.latLng(hospitalAtual.lat, hospitalAtual.lng), latlng);
+};
+
+// =====================================================================
+// 10. QUERY ESPACIAL — contém / está contido / intercepta
+// =====================================================================
+function garantirBuffer() { if (!bufferGeom) buscarProximos(); }
+
+function verificarHospitalNaArea() {
+  if (!hospitalAtual) { alert('Busque um hospital primeiro (§00).'); return; }
+  const hospitalPoint = turf.point([hospitalAtual.lng, hospitalAtual.lat]);
+  const resultado = turf.booleanPointInPolygon(hospitalPoint, areaCoberturaGeom);
+  document.getElementById('queryReadout').innerHTML =
+    `O Hospital está contido na Área de abrangência?<br><b>${resultado ? 'SIM' : 'NÃO'}</b>`;
+}
+
+function verificarRaioContidoArea() {
+  if (!hospitalAtual) { alert('Busque um hospital primeiro (§00).'); return; }
+  garantirBuffer();
+  const resultado = turf.booleanWithin(bufferGeom, areaCoberturaGeom);
+  document.getElementById('queryReadout').innerHTML =
+    `O Raio de busca está totalmente contido na Área de abrangência?<br><b>${resultado ? 'SIM' : 'NÃO'}</b>`;
+}
+
+function verificarRaioInterceptaVia() {
+  if (!hospitalAtual) { alert('Busque um hospital primeiro (§00).'); return; }
+  garantirBuffer();
+  const resultado = turf.booleanIntersects(bufferGeom, viaLineGeom);
+  document.getElementById('queryReadout').innerHTML =
+    `O Raio de busca intercepta a Via de referência?<br><b>${resultado ? 'SIM' : 'NÃO'}</b>`;
+}
+
+// =====================================================================
+// 11. ANÁLISE ESTATÍSTICA — sobre o resultado da última busca (§04)
+// =====================================================================
+function analiseEstatistica() {
+  if (!ultimaBusca.length) {
+    document.getElementById('statGrid').innerHTML = '';
+    document.getElementById('statPorTipo').innerHTML = '<p class="hint">Nenhum resultado carregado. Rode uma busca em §04 primeiro.</p>';
+    return;
+  }
+  const distancias = ultimaBusca.map(r => r.distanciaKm * 1000).sort((a, b) => a - b);
+  const n = distancias.length;
+  const soma = distancias.reduce((a, b) => a + b, 0);
+  const media = soma / n;
+  const mediana = n % 2 === 0 ? (distancias[n / 2 - 1] + distancias[n / 2]) / 2 : distancias[(n - 1) / 2];
+  const min = distancias[0], max = distancias[n - 1];
+  const variancia = distancias.reduce((acc, v) => acc + Math.pow(v - media, 2), 0) / n;
+  const desvio = Math.sqrt(variancia);
+  const fmt = v => Math.round(v) + ' m';
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="cell"><span class="k">Resultados</span><span class="v">${n}</span></div>
+    <div class="cell"><span class="k">Distância média</span><span class="v">${fmt(media)}</span></div>
+    <div class="cell"><span class="k">Mediana</span><span class="v">${fmt(mediana)}</span></div>
+    <div class="cell"><span class="k">Mais próximo</span><span class="v">${fmt(min)}</span></div>
+    <div class="cell"><span class="k">Mais distante</span><span class="v">${fmt(max)}</span></div>
+    <div class="cell" style="grid-column:1 / -1;"><span class="k">Desvio padrão</span><span class="v">${fmt(desvio)}</span></div>
+  `;
+
+  const porTipo = {};
+  ultimaBusca.forEach(r => {
+    if (!porTipo[r.tipo]) porTipo[r.tipo] = { count: 0, soma: 0 };
+    porTipo[r.tipo].count++;
+    porTipo[r.tipo].soma += r.distanciaKm * 1000;
+  });
+  const maxMedia = Math.max(...Object.values(porTipo).map(v => v.soma / v.count));
+  const linhas = Object.entries(porTipo).map(([tipo, v]) => {
+    const mediaTipo = v.soma / v.count;
+    const pct = (mediaTipo / maxMedia) * 100;
+    return `<div class="bar-row"><span style="min-width:90px">${tipo} (${v.count})</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <span style="min-width:60px; text-align:right">${fmt(mediaTipo)}</span></div>`;
+  }).join('');
+  document.getElementById('statPorTipo').innerHTML =
+    `<p class="hint" style="margin-top:8px;">Distância média até o hospital, por categoria:</p>${linhas}`;
+}
+
+// =====================================================================
+// 12. RODAPÉ — leitura de coordenadas em tempo real
+// =====================================================================
+map.on('mousemove', function (e) {
+  document.getElementById('coordReadout').textContent = `${e.latlng.lat.toFixed(5)}° / ${e.latlng.lng.toFixed(5)}°`;
+});
+map.on('zoomend', function () { document.getElementById('zoomReadout').textContent = map.getZoom(); });
+</script>
+</body>
+</html>
