@@ -272,13 +272,6 @@
         <input type="text" id="hospitalInput" placeholder="Ex: Hospital Odilon Behrens, Belo Horizonte">
         <button class="btn-accent" onclick="buscarHospitalPorNome()">🔎 Buscar hospital</button>
 
-        <label class="field-label" style="margin-top:4px;">Atalhos</label>
-        <div class="btn-row">
-          <button class="btn-small" onclick="buscarHospitalPorNome('Santa Casa BH, Belo Horizonte')">Santa Casa</button>
-          <button class="btn-small" onclick="buscarHospitalPorNome('Hospital das Clínicas UFMG, Belo Horizonte')">HC-UFMG</button>
-          <button class="btn-small" onclick="buscarHospitalPorNome('Hospital Municipal Odilon Behrens, Belo Horizonte')">Odilon Behrens</button>
-        </div>
-
         <div id="hospitalReadout" class="readout">Busque um hospital para começar.</div>
         <p class="hint">A localização vem de geocodificação real (MapTiler). As farmácias e laboratórios são buscados no OpenStreetMap (dados reais); se nenhum for encontrado na área, o app usa dados simulados como alternativa e avisa isso claramente.</p>
       </div>
