@@ -1255,9 +1255,6 @@ function analiseEstatistica() {
     `<p class="hint" style="margin-top:8px;">Distância média até o hospital, por categoria:</p>${linhas}`;
 }
 
-// =====================================================================
-// 12. RODAPÉ — leitura de coordenadas em tempo real
-// =====================================================================
 map.on('mousemove', function (e) {
   document.getElementById('coordReadout').textContent = `${e.latlng.lat.toFixed(5)}° / ${e.latlng.lng.toFixed(5)}°`;
 });
