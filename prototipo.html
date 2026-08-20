@@ -142,7 +142,9 @@
   .result-list li .d{ color:var(--bp-amber); }
   .result-list li .tipo-tag{ font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
   .result-list li .tipo-tag.farmacia{ color:var(--bp-green); }
-  .result-list li .tipo-tag.laboratorio{ color:var(--bp-purple); }
+  .result-list li .tipo-tag.lab-imagem{ color:var(--bp-purple); }
+  .result-list li .tipo-tag.lab-sangue{ color:var(--bp-teal); }
+  .result-list li .tipo-tag.lab-outro{ color:var(--bp-text-dim); }
 
   .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; font-family:var(--font-mono); font-size:12px; }
   .stat-grid .cell{ background:var(--bp-bg-deep); border:1px solid var(--bp-line); border-radius:4px; padding:7px 8px; }
@@ -297,7 +299,7 @@
         <label class="field-label">Camadas habilitadas</label>
         <div class="checkbox-row"><input type="checkbox" id="chkHospital" checked onchange="toggleLayer('hospital', this.checked)"><label for="chkHospital">Hospital (ponto)</label></div>
         <div class="checkbox-row"><input type="checkbox" id="chkFarmaciaLayer" checked onchange="toggleLayer('farmacias', this.checked)"><label for="chkFarmaciaLayer">Farmácias (pontos)</label></div>
-        <div class="checkbox-row"><input type="checkbox" id="chkLaboratorioLayer" checked onchange="toggleLayer('laboratorios', this.checked)"><label for="chkLaboratorioLayer">Laboratórios de radiografia (pontos)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkLaboratorioLayer" checked onchange="toggleLayer('laboratorios', this.checked)"><label for="chkLaboratorioLayer">Laboratórios (pontos)</label></div>
         <div class="checkbox-row"><input type="checkbox" id="chkBuffer" checked onchange="toggleLayer('buffer', this.checked)"><label for="chkBuffer">Raio de busca (polígono)</label></div>
         <div class="checkbox-row"><input type="checkbox" id="chkArea" checked onchange="toggleLayer('area', this.checked)"><label for="chkArea">Área de abrangência (polígono)</label></div>
         <div class="checkbox-row"><input type="checkbox" id="chkVia" checked onchange="toggleLayer('via', this.checked)"><label for="chkVia">Via de referência (linha)</label></div>
@@ -348,7 +350,12 @@
       <div class="section-body">
         <label class="field-label">Categoria</label>
         <div class="checkbox-row"><input type="checkbox" id="chkCatFarmacia" checked><label for="chkCatFarmacia">Farmácias</label></div>
-        <div class="checkbox-row"><input type="checkbox" id="chkCatLaboratorio" checked><label for="chkCatLaboratorio">Laboratórios de radiografia</label></div>
+
+        <label class="field-label" style="margin-top:6px;">Laboratórios, por tipo de exame</label>
+        <div class="checkbox-row"><input type="checkbox" id="chkCatLabImagem" checked><label for="chkCatLabImagem">Imagem / Raio-X</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkCatLabSangue" checked><label for="chkCatLabSangue">Exame de sangue / Análises clínicas</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="chkCatLabOutro" checked><label for="chkCatLabOutro">Outros / não identificado</label></div>
+        <p class="hint">Quando o OpenStreetMap não informa a especialidade do laboratório, o tipo é inferido pelo nome do estabelecimento (ex: "Raio-X", "Análises Clínicas"). Quando não dá pra inferir, cai em "Outros".</p>
 
         <label class="field-label" for="raioInput">Raio de busca a partir do hospital</label>
         <div class="btn-row">
@@ -671,7 +678,34 @@ async function carregarHospital(h) {
 // =====================================================================
 const RAIO_CARGA_METROS = 4000;
 const NOMES_FARMACIA_SIM = ['Farmácia Central', 'Drogaria Bem Estar', 'Farmácia Vida Saudável', 'Farmácia Popular', 'Drogaria São Rafael', 'Farmácia Cruz Azul'];
-const NOMES_LABORATORIO_SIM = ['Instituto de Imagem BH', 'Laboratório Raio-X Precisão', 'Centro de Diagnóstico por Imagem', 'Laboratório Radiológico Santa Fé', 'Clínica de Radiografia Horizonte'];
+const NOMES_LABORATORIO_SIM_IMAGEM = ['Instituto de Imagem BH', 'Laboratório Raio-X Precisão', 'Centro de Diagnóstico por Imagem', 'Clínica de Radiografia Horizonte'];
+const NOMES_LABORATORIO_SIM_SANGUE = ['Laboratório de Análises Clínicas Santa Fé', 'Central de Exames Vida', 'Laboratório Bioclínico BH'];
+
+// ---------------------------------------------------------------------
+// CLASSIFICAÇÃO DE SUBTIPO DE LABORATÓRIO
+// 1ª tentativa: tag "healthcare:speciality" do OSM (mais confiável, mas
+// raramente preenchida no Brasil). 2ª tentativa (fallback): procura
+// palavras-chave no nome do estabelecimento. Se nada bater, cai em
+// "Outro" — o app não inventa uma categoria sem indício nenhum.
+// ---------------------------------------------------------------------
+function removerAcentos(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function classificarSubtipoLaboratorio(tags) {
+  const especialidade = removerAcentos((tags['healthcare:speciality'] || '')).toLowerCase();
+  if (/radiology|imaging/.test(especialidade)) return 'Imagem/Raio-X';
+  if (/laboratory|blood.?test|clinical.?pathology|pathology/.test(especialidade)) return 'Exame de sangue';
+
+  const nome = removerAcentos(tags.name || '').toLowerCase();
+  if (/raio.?x|imagem|radiolog|tomografia|ressonancia|ultrassom|ultra-?som|ecografia|mamografia/.test(nome)) {
+    return 'Imagem/Raio-X';
+  }
+  if (/analises? clinicas?|exames? de sangue|patologia clinica|bioquimica|laboratorio de analises|lab\.? de analises/.test(nome)) {
+    return 'Exame de sangue';
+  }
+  return 'Outro';
+}
 
 let camadaEstabelecimentos = null;
 let estabelecimentosData = null;
@@ -680,19 +714,29 @@ let viaLineGeom = null, viaLineLayer = null;
 let bufferGeom = null, bufferLayer = null;
 let ultimaBusca = [];
 
-function estiloEstabelecimento(tipo) {
+function estiloEstabelecimento(tipo, subtipo) {
   if (tipo === 'Farmácia') return { radius: 7, fillColor: '#6bcf9f', color: '#0f2846', weight: 1, fillOpacity: 0.9 };
-  return { radius: 7, fillColor: '#b389f0', color: '#0f2846', weight: 1, fillOpacity: 0.9 };
+  if (subtipo === 'Imagem/Raio-X') return { radius: 7, fillColor: '#b389f0', color: '#0f2846', weight: 1, fillOpacity: 0.9 };
+  if (subtipo === 'Exame de sangue') return { radius: 7, fillColor: '#4fd1c5', color: '#0f2846', weight: 1, fillOpacity: 0.9 };
+  return { radius: 7, fillColor: '#90afca', color: '#0f2846', weight: 1, fillOpacity: 0.9 }; // Outro/não identificado
 }
 
 function gerarEstabelecimentosSimulados(hospital) {
   const bbox = [hospital.lng - 0.02, hospital.lat - 0.016, hospital.lng + 0.02, hospital.lat + 0.016];
   const pontos = turf.randomPoint(18, { bbox });
-  let iF = 0, iL = 0;
+  let iF = 0, iImg = 0, iSang = 0;
   turf.propEach(pontos, function (prop) {
-    const isFarmacia = Math.random() > 0.45;
-    if (isFarmacia) { prop.tipo = 'Farmácia'; prop.nome = NOMES_FARMACIA_SIM[iF % NOMES_FARMACIA_SIM.length]; iF++; }
-    else { prop.tipo = 'Laboratório'; prop.nome = NOMES_LABORATORIO_SIM[iL % NOMES_LABORATORIO_SIM.length]; iL++; }
+    const r = Math.random();
+    if (r > 0.55) {
+      prop.tipo = 'Farmácia'; prop.subtipo = 'Farmácia';
+      prop.nome = NOMES_FARMACIA_SIM[iF % NOMES_FARMACIA_SIM.length]; iF++;
+    } else if (r > 0.27) {
+      prop.tipo = 'Laboratório'; prop.subtipo = 'Imagem/Raio-X';
+      prop.nome = NOMES_LABORATORIO_SIM_IMAGEM[iImg % NOMES_LABORATORIO_SIM_IMAGEM.length]; iImg++;
+    } else {
+      prop.tipo = 'Laboratório'; prop.subtipo = 'Exame de sangue';
+      prop.nome = NOMES_LABORATORIO_SIM_SANGUE[iSang % NOMES_LABORATORIO_SIM_SANGUE.length]; iSang++;
+    }
     prop.horario = Math.random() > 0.5 ? 'Aberto 24h' : 'Comercial · 8h–18h';
   });
   return pontos;
@@ -712,26 +756,33 @@ async function carregarEstabelecimentos(hospital) {
   if (data) {
     itens = (data.elements || [])
       .filter(el => el.lat && el.lon)
-      .map(el => ({
-        tipo: el.tags.amenity === 'pharmacy' ? 'Farmácia' : 'Laboratório',
-        nome: el.tags.name || (el.tags.amenity === 'pharmacy' ? 'Farmácia (sem nome no OSM)' : 'Laboratório (sem nome no OSM)'),
-        lat: el.lat, lng: el.lon,
-        horario: el.tags.opening_hours || 'Horário não informado no OSM'
-      }));
+      .map(el => {
+        const tipo = el.tags.amenity === 'pharmacy' ? 'Farmácia' : 'Laboratório';
+        const subtipo = tipo === 'Farmácia' ? 'Farmácia' : classificarSubtipoLaboratorio(el.tags);
+        return {
+          tipo, subtipo,
+          nome: el.tags.name || (tipo === 'Farmácia' ? 'Farmácia (sem nome no OSM)' : 'Laboratório (sem nome no OSM)'),
+          lat: el.lat, lng: el.lon,
+          horario: el.tags.opening_hours || 'Horário não informado no OSM'
+        };
+      });
   }
 
   let origemReal = itens.length > 0;
   if (!origemReal) {
     const fc = gerarEstabelecimentosSimulados(hospital);
-    itens = fc.features.map(f => ({ tipo: f.properties.tipo, nome: f.properties.nome, lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], horario: f.properties.horario }));
+    itens = fc.features.map(f => ({ tipo: f.properties.tipo, subtipo: f.properties.subtipo, nome: f.properties.nome, lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], horario: f.properties.horario }));
   }
 
-  estabelecimentosData = turf.featureCollection(itens.map(it => turf.point([it.lng, it.lat], { tipo: it.tipo, nome: it.nome, horario: it.horario })));
+  estabelecimentosData = turf.featureCollection(itens.map(it => turf.point([it.lng, it.lat], { tipo: it.tipo, subtipo: it.subtipo, nome: it.nome, horario: it.horario })));
 
   if (camadaEstabelecimentos) map.removeLayer(camadaEstabelecimentos);
   camadaEstabelecimentos = L.geoJSON(estabelecimentosData, {
-    pointToLayer: (feature, latlng) => L.circleMarker(latlng, estiloEstabelecimento(feature.properties.tipo)),
-    onEachFeature: (feature, layer) => layer.bindPopup(`<b>${feature.properties.nome}</b><br>${feature.properties.tipo}<br>${feature.properties.horario}`)
+    pointToLayer: (feature, latlng) => L.circleMarker(latlng, estiloEstabelecimento(feature.properties.tipo, feature.properties.subtipo)),
+    onEachFeature: (feature, layer) => {
+      const linhaSubtipo = feature.properties.tipo === 'Laboratório' ? `${feature.properties.subtipo}<br>` : '';
+      layer.bindPopup(`<b>${feature.properties.nome}</b><br>${feature.properties.tipo}<br>${linhaSubtipo}${feature.properties.horario}`);
+    }
   }).addTo(map);
 
   const nF = itens.filter(i => i.tipo === 'Farmácia').length;
@@ -855,6 +906,7 @@ function traduzirInstrucao(textoOriginal) {
     return `Entre na rotatória e pegue a ${m[1]}ª saída${m[2] ? ` na ${m[2]}` : ''}`;
   }
   if (/^Enter the roundabout$/i.test(t)) return 'Entre na rotatória';
+  if ((m = t.match(/^Enter (.+)$/i))) return `Entre na ${m[1]}`;
 
   if ((m = t.match(/^Head (\w+) on (.+)$/i))) return `Siga para ${DIRECOES_PT[m[1].toLowerCase()] || m[1]} na ${m[2]}`;
   if ((m = t.match(/^Head (\w+)$/i))) return `Siga para ${DIRECOES_PT[m[1].toLowerCase()] || m[1]}`;
@@ -867,6 +919,18 @@ function traduzirInstrucao(textoOriginal) {
   if ((m = t.match(/^Make a U-turn onto (.+)$/i))) return `Faça o retorno na ${m[1]}`;
   if (/^Make a U-turn$/i.test(t)) return 'Faça o retorno';
 
+  // Padrão genérico "Make a [slight/sharp] left/right/U-turn [to stay on X | onto X]"
+  // — cobre todas as variações desse tipo de instrução de uma vez.
+  if ((m = t.match(/^Make a (slight |sharp )?(left|right|u-turn)(?: (to stay on|onto) (.+))?$/i))) {
+    const intensidade = m[1] ? { 'slight ': 'levemente ', 'sharp ': 'fortemente ' }[m[1].toLowerCase()] : '';
+    const direcao = m[2].toLowerCase() === 'u-turn' ? 'o retorno' : `${intensidade}à ${m[2].toLowerCase() === 'left' ? 'esquerda' : 'direita'}`;
+    let frase = `Faça ${direcao}`;
+    if (m[4]) {
+      frase += m[3].toLowerCase() === 'to stay on' ? ` para permanecer na ${m[4]}` : ` na ${m[4]}`;
+    }
+    return frase;
+  }
+
   const padroesComRua = [
     [/^Turn slight left onto (.+)$/i, 'Vire levemente à esquerda na '],
     [/^Turn slight right onto (.+)$/i, 'Vire levemente à direita na '],
@@ -874,8 +938,17 @@ function traduzirInstrucao(textoOriginal) {
     [/^Turn sharp right onto (.+)$/i, 'Vire fortemente à direita na '],
     [/^Turn left onto (.+)$/i, 'Vire à esquerda na '],
     [/^Turn right onto (.+)$/i, 'Vire à direita na '],
+    [/^Turn slight left to stay on (.+)$/i, 'Vire levemente à esquerda para permanecer na '],
+    [/^Turn slight right to stay on (.+)$/i, 'Vire levemente à direita para permanecer na '],
+    [/^Turn sharp left to stay on (.+)$/i, 'Vire fortemente à esquerda para permanecer na '],
+    [/^Turn sharp right to stay on (.+)$/i, 'Vire fortemente à direita para permanecer na '],
+    [/^Turn left to stay on (.+)$/i, 'Vire à esquerda para permanecer na '],
+    [/^Turn right to stay on (.+)$/i, 'Vire à direita para permanecer na '],
     [/^Keep left onto (.+)$/i, 'Mantenha-se à esquerda na '],
     [/^Keep right onto (.+)$/i, 'Mantenha-se à direita na '],
+    [/^Keep left to stay on (.+)$/i, 'Mantenha-se à esquerda para permanecer na '],
+    [/^Keep right to stay on (.+)$/i, 'Mantenha-se à direita para permanecer na '],
+    [/^Continue to stay on (.+)$/i, 'Continue para permanecer na '],
     [/^Merge left onto (.+)$/i, 'Entre à esquerda na '],
     [/^Merge right onto (.+)$/i, 'Entre à direita na '],
     [/^Take the ramp on the left onto (.+)$/i, 'Pegue a rampa à esquerda na '],
@@ -918,10 +991,13 @@ function traduzirPorPalavras(texto) {
     [/\bsouthwest\b/gi, 'sudoeste'], [/\bsoutheast\b/gi, 'sudeste'],
     [/\bnorth\b/gi, 'norte'], [/\bsouth\b/gi, 'sul'], [/\beast\b/gi, 'leste'], [/\bwest\b/gi, 'oeste'],
     [/\bMake a U-turn\b/gi, 'Faça o retorno'], [/\bU-turn\b/gi, 'retorno'],
+    [/\bto stay on\b/gi, 'para permanecer na'],
     [/\bend of the road\b/gi, 'final da via'],
     [/\byou have arrived at\b/gi, 'você chegou a'], [/\byour destination\b/gi, 'seu destino'],
     [/\bWaypoint\b/gi, 'Ponto de passagem'], [/\breached\b/gi, 'alcançado'],
     [/\bEnter the roundabout\b/gi, 'Entre na rotatória'], [/\broundabout\b/gi, 'rotatória'], [/\bexit\b/gi, 'saída'],
+    [/\bEnter\b/gi, 'Entre na'],
+    [/\bMake a slight\b/gi, 'Faça levemente'], [/\bMake a sharp\b/gi, 'Faça fortemente'], [/\bMake a\b/gi, 'Faça'],
     [/\bTurn slight\b/gi, 'Vire levemente'], [/\bTurn sharp\b/gi, 'Vire fortemente'], [/\bTurn\b/gi, 'Vire'],
     [/\bKeep\b/gi, 'Mantenha-se'], [/\bMerge\b/gi, 'Entre'], [/\bTake the ramp\b/gi, 'Pegue a rampa'], [/\bramp\b/gi, 'rampa'],
     [/\bfork\b/gi, 'bifurcação'], [/\bHead\b/gi, 'Siga para'], [/\bContinue\b/gi, 'Continue'],
@@ -1034,8 +1110,17 @@ function buscarProximos() {
   const raioM = Math.min(parseFloat(document.getElementById('raioInput').value) || 1000, RAIO_CARGA_METROS);
   const raioKm = raioM / 1000;
   const querFarmacia = document.getElementById('chkCatFarmacia').checked;
-  const querLab = document.getElementById('chkCatLaboratorio').checked;
+  const querLabImagem = document.getElementById('chkCatLabImagem').checked;
+  const querLabSangue = document.getElementById('chkCatLabSangue').checked;
+  const querLabOutro = document.getElementById('chkCatLabOutro').checked;
   const ordenarPor = document.getElementById('ordenarSelect').value;
+
+  function categoriaHabilitada(tipo, subtipo) {
+    if (tipo === 'Farmácia') return querFarmacia;
+    if (subtipo === 'Imagem/Raio-X') return querLabImagem;
+    if (subtipo === 'Exame de sangue') return querLabSangue;
+    return querLabOutro; // laboratório sem subtipo identificado
+  }
 
   if (bufferLayer) map.removeLayer(bufferLayer);
   bufferGeom = turf.buffer(hospitalPoint, raioKm, { units: 'kilometers' });
@@ -1046,7 +1131,8 @@ function buscarProximos() {
   camadaEstabelecimentos.eachLayer(function (layer) {
     const feature = layer.feature;
     const tipo = feature.properties.tipo;
-    if ((tipo === 'Farmácia' && !querFarmacia) || (tipo === 'Laboratório' && !querLab)) {
+    const subtipo = feature.properties.subtipo;
+    if (!categoriaHabilitada(tipo, subtipo)) {
       layer.setStyle({ opacity: 0, fillOpacity: 0 });
       return;
     }
@@ -1054,8 +1140,8 @@ function buscarProximos() {
     const dentro = turf.booleanPointInPolygon(turf.point(coords), bufferGeom);
     if (dentro) {
       const distanciaKm = turf.distance(hospitalPoint, turf.point(coords), { units: 'kilometers' });
-      layer.setStyle({ ...estiloEstabelecimento(tipo), color: '#ffffff', weight: 2 });
-      ultimaBusca.push({ layer, nome: feature.properties.nome, tipo, horario: feature.properties.horario, distanciaKm });
+      layer.setStyle({ ...estiloEstabelecimento(tipo, subtipo), color: '#ffffff', weight: 2 });
+      ultimaBusca.push({ layer, nome: feature.properties.nome, tipo, subtipo, horario: feature.properties.horario, distanciaKm });
     } else {
       layer.setStyle({ opacity: 0, fillOpacity: 0 });
     }
@@ -1065,16 +1151,23 @@ function buscarProximos() {
   else ultimaBusca.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
   const nFarmacia = ultimaBusca.filter(r => r.tipo === 'Farmácia').length;
-  const nLab = ultimaBusca.filter(r => r.tipo === 'Laboratório').length;
+  const nLabImagem = ultimaBusca.filter(r => r.subtipo === 'Imagem/Raio-X').length;
+  const nLabSangue = ultimaBusca.filter(r => r.subtipo === 'Exame de sangue').length;
+  const nLabOutro = ultimaBusca.filter(r => r.tipo === 'Laboratório' && r.subtipo === 'Outro').length;
   document.getElementById('filtroReadout').innerHTML =
-    `<b>${ultimaBusca.length}</b> resultado(s) em até <b>${raioM} m</b> do ${h.nome}.\n<span class="muted">${nFarmacia} farmácia(s) · ${nLab} laboratório(s)</span>`;
+    `<b>${ultimaBusca.length}</b> resultado(s) em até <b>${raioM} m</b> do ${h.nome}.\n<span class="muted">${nFarmacia} farmácia(s) · ${nLabImagem} lab. imagem · ${nLabSangue} lab. sangue · ${nLabOutro} lab. outros</span>`;
 
-  document.getElementById('filtroLista').innerHTML = ultimaBusca.map((r, idx) =>
-    `<li onclick='window.__irAoResultado(${idx})'>
+  document.getElementById('filtroLista').innerHTML = ultimaBusca.map((r, idx) => {
+    const rotulo = r.tipo === 'Farmácia' ? 'Farmácia' : r.subtipo;
+    const classeCss = r.tipo === 'Farmácia' ? 'farmacia'
+      : r.subtipo === 'Imagem/Raio-X' ? 'lab-imagem'
+      : r.subtipo === 'Exame de sangue' ? 'lab-sangue'
+      : 'lab-outro';
+    return `<li onclick='window.__irAoResultado(${idx})'>
        <div class="row1"><span>${r.nome}</span><span class="d">${(r.distanciaKm * 1000).toFixed(0)} m</span></div>
-       <div class="tipo-tag ${r.tipo === 'Farmácia' ? 'farmacia' : 'laboratorio'}">${r.tipo} · ${r.horario}</div>
-     </li>`
-  ).join('');
+       <div class="tipo-tag ${classeCss}">${rotulo} · ${r.horario}</div>
+     </li>`;
+  }).join('');
 }
 
 window.__irAoResultado = function (idx) {
@@ -1143,19 +1236,20 @@ function analiseEstatistica() {
     <div class="cell" style="grid-column:1 / -1;"><span class="k">Desvio padrão</span><span class="v">${fmt(desvio)}</span></div>
   `;
 
-  const porTipo = {};
+  const porCategoria = {};
   ultimaBusca.forEach(r => {
-    if (!porTipo[r.tipo]) porTipo[r.tipo] = { count: 0, soma: 0 };
-    porTipo[r.tipo].count++;
-    porTipo[r.tipo].soma += r.distanciaKm * 1000;
+    const chave = r.tipo === 'Farmácia' ? 'Farmácia' : `Laboratório · ${r.subtipo}`;
+    if (!porCategoria[chave]) porCategoria[chave] = { count: 0, soma: 0 };
+    porCategoria[chave].count++;
+    porCategoria[chave].soma += r.distanciaKm * 1000;
   });
-  const maxMedia = Math.max(...Object.values(porTipo).map(v => v.soma / v.count));
-  const linhas = Object.entries(porTipo).map(([tipo, v]) => {
-    const mediaTipo = v.soma / v.count;
-    const pct = (mediaTipo / maxMedia) * 100;
-    return `<div class="bar-row"><span style="min-width:90px">${tipo} (${v.count})</span>
+  const maxMedia = Math.max(...Object.values(porCategoria).map(v => v.soma / v.count));
+  const linhas = Object.entries(porCategoria).map(([categoria, v]) => {
+    const media = v.soma / v.count;
+    const pct = (media / maxMedia) * 100;
+    return `<div class="bar-row"><span style="min-width:120px">${categoria} (${v.count})</span>
       <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-      <span style="min-width:60px; text-align:right">${fmt(mediaTipo)}</span></div>`;
+      <span style="min-width:60px; text-align:right">${fmt(media)}</span></div>`;
   }).join('');
   document.getElementById('statPorTipo').innerHTML =
     `<p class="hint" style="margin-top:8px;">Distância média até o hospital, por categoria:</p>${linhas}`;
