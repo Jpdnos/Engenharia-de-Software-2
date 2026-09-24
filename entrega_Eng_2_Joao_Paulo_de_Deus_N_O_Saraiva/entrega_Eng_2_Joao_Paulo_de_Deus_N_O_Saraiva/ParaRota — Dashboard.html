@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ParaRota — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#1c3a5e; --navy2:#274b74; --orange:#f2a93b; --bg:#eef1f5; --surface:#fff;
+  --text:#1c2b3a; --muted:#7c8a99; --line:#e3e8ee; --good:#3fae6a;
+  --font-display:'Space Grotesk',system-ui,sans-serif;
+  --font-ui:'IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',Consolas,monospace;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);min-height:100%;}
+
+.shell{display:flex;min-height:100vh;}
+.side{
+  width:230px;flex:none;background:var(--navy);color:#fff;
+  padding:calc(22px + env(safe-area-inset-top,0px)) 18px 20px;
+  display:flex;flex-direction:column;gap:26px;
+}
+.profile{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.12);}
+.avatar{width:56px;height:56px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;}
+.profile .name{font-family:var(--font-display);font-weight:700;font-size:1rem;letter-spacing:.02em;}
+.profile .mail{font-size:.7rem;color:#a9c0d6;}
+.side nav{display:flex;flex-direction:column;gap:3px;}
+.side nav button{
+  display:flex;align-items:center;gap:10px;text-align:left;background:transparent;border:none;color:#c3d4e6;
+  padding:10px 12px;border-radius:8px;font-family:var(--font-ui);font-size:.88rem;cursor:pointer;
+  transition:background .2s ease, color .2s ease, transform .15s ease;
+}
+.side nav button .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;transition:opacity .2s ease;}
+.side nav button.active{background:var(--orange);color:#1c2b3a;font-weight:600;transform:translateX(2px);}
+.side nav button.active .dot{opacity:1;}
+.side nav button:hover:not(.active){color:#fff;background:rgba(255,255,255,.06);}
+.side .foot{margin-top:auto;font-size:.68rem;color:#7f9ab6;line-height:1.5;}
+
+.topbar{display:none;}
+
+main{flex:1;min-width:0;padding:26px 30px calc(60px + env(safe-area-inset-bottom,0px));max-width:1080px;}
+.headerbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;}
+h1.page-title{font-family:var(--font-display);font-weight:600;font-size:1.4rem;margin:0 0 4px;}
+.page-sub{color:var(--muted);font-size:.85rem;margin:0;}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat{background:var(--surface);border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(28,58,94,.08);transition:transform .25s ease, box-shadow .25s ease;}
+.stat:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(28,58,94,.12);}
+.stat.hero{background:var(--navy);color:#fff;}
+.stat .lbl{font-size:.72rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+.stat.hero .lbl{color:#a9c0d6;}
+.stat .val{font-family:var(--font-mono);font-weight:500;font-size:1.5rem;margin-top:6px;}
+
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px;}
+.card{background:var(--surface);border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(28,58,94,.08);margin-bottom:16px;transition:transform .25s ease, box-shadow .25s ease;}
+.card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(28,58,94,.1);}
+.card h2{margin:0 0 12px;font-family:var(--font-display);font-weight:600;font-size:.95rem;display:flex;justify-content:space-between;align-items:center;}
+.card h2 .pct{background:var(--orange);color:#1c2b3a;font-family:var(--font-mono);font-size:.72rem;padding:2px 8px;border-radius:5px;}
+.legend{display:flex;gap:14px;font-size:.72rem;color:var(--muted);margin-top:10px;}
+.legend span{display:inline-flex;align-items:center;gap:5px;}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+.doughnut-wrap{position:relative;height:150px;}
+.doughnut-mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:var(--font-mono);}
+.doughnut-mid b{font-size:1.3rem;}
+.doughnut-mid span{font-size:.65rem;color:var(--muted);}
+ul.mini{list-style:none;margin:10px 0 0;padding:0;font-size:.78rem;}
+ul.mini li{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);}
+ul.mini li:last-child{border-bottom:none;}
+
+label{display:block;font-size:.74rem;color:var(--muted);margin-top:10px;}
+input,select{
+  width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fbfcfe;color:var(--text);
+  font-family:var(--font-ui);font-size:.88rem;margin-top:3px;
+}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--orange);outline-offset:1px;}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.small{font-size:.74rem;color:var(--muted);}
+.ptorow{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:8px;}
+button.btn{margin-top:14px;background:var(--orange);color:#1c2b3a;border:none;padding:9px 16px;border-radius:6px;cursor:pointer;font-family:var(--font-ui);font-weight:600;font-size:.85rem;transition:transform .15s ease, box-shadow .15s ease;}
+button.btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(242,169,59,.35);}
+button.btn.secondary{background:var(--navy);color:#fff;}
+button.btn.secondary:hover{box-shadow:0 6px 14px rgba(28,58,94,.3);}
+table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:.8rem;margin-top:10px;}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);}
+th{font-family:var(--font-ui);font-weight:600;color:var(--muted);font-size:.72rem;}
+.wrap-x{overflow-x:auto;}
+.tag{display:inline-block;background:var(--orange);color:#1c2b3a;border-radius:3px;padding:1px 8px;font-size:.7rem;margin-left:6px;font-family:var(--font-mono);}
+
+@media (max-width:900px){ .stats{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;} }
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+#main.fade-in{animation:fadeUp .35s ease both;}
+@media (max-width:760px){
+  .shell{flex-direction:column;}
+  .side{display:none;}
+  .topbar{
+    display:flex;gap:4px;overflow-x:auto;background:var(--navy);
+    padding:calc(10px + env(safe-area-inset-top,0px)) 10px 10px;position:sticky;top:0;z-index:5;
+  }
+  .topbar button{white-space:nowrap;background:transparent;border:none;color:#c3d4e6;padding:7px 11px;border-radius:6px;font-family:var(--font-ui);font-size:.82rem;cursor:pointer;}
+  .topbar button.active{background:var(--orange);color:#1c2b3a;}
+  main{padding:18px 14px calc(50px + env(safe-area-inset-bottom,0px));}
+  .row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="profile">
+      <div class="avatar"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#1c3a5e"/><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6" stroke="#1c3a5e" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div class="name">ParaRota</div>
+      <div class="mail">painel operacional</div>
+    </div>
+    <nav id="side-nav"></nav>
+    <div class="foot">Engenharia de Software II<br>Projeto de Interface e Interação</div>
+  </aside>
+  <div style="flex:1;min-width:0;">
+    <div class="topbar" id="topbar"></div>
+    <main id="main"></main>
+  </div>
+</div>
+
+<script>
+const tabs = [
+  {k:"dashboard", t:"Dashboard"},
+  {k:"cadastros", t:"Cadastros"},
+  {k:"roteiros", t:"Roteiros"},
+  {k:"parametros", t:"Parâmetros"}
+];
+const titles = {cadastros:["Cadastros","Motoristas, gerentes e pontos do trajeto."],
+  roteiros:["Roteiros","Monte o roteiro diário e acompanhe o tempo parado calculado."],
+  dashboard:["Dashboard","Visão geral de tempo parado, custos e jornada."],
+  parametros:["Parâmetros","Custos e jornada padrão, ajustáveis sem alterar código."]};
+let active = "dashboard";
+let db = {
+  motoristas: [
+    {id:1,nome:"Carlos Souza",telefone:"31 99999-0001",documento:"MG1234567",veiculo:"Honda CG 160",kmLitro:35},
+    {id:2,nome:"Renata Alves",telefone:"31 98888-1122",documento:"MG7654321",veiculo:"Yamaha Fazer 250",kmLitro:28},
+    {id:3,nome:"Marcos Vinícius",telefone:"31 97777-4455",documento:"MG9988776",veiculo:"Honda Biz 125",kmLitro:42}
+  ],
+  gerentes: [
+    {id:1,nome:"Ana Lima",telefone:"31 98888-0002",email:"ana@empresa.com"},
+    {id:2,nome:"Bruno Teixeira",telefone:"31 99222-3344",email:"bruno@empresa.com"}
+  ],
+  pontos: [
+    {id:1,endereco:"Seg. Família (partida)"},
+    {id:2,endereco:"Rua Peru, 55"},
+    {id:3,endereco:"Rua X, 5"},
+    {id:4,endereco:"Av. João César"},
+    {id:5,endereco:"Rua das Palmeiras, 210"},
+    {id:6,endereco:"Av. Cristiano Machado, 4200"}
+  ],
+  roteiros: [
+    {id:1,data:"2026-09-20",motoristaId:1,pontos:[{pontoId:1,chegada:"08:00",saida:"08:00"},{pontoId:2,chegada:"08:20",saida:"08:35"},{pontoId:3,chegada:"09:00",saida:"09:10"},{pontoId:4,chegada:"09:40",saida:"10:30"}],tempoTotalMin:65,distancia:14},
+    {id:2,data:"2026-09-21",motoristaId:1,pontos:[{pontoId:1,chegada:"08:00",saida:"08:00"},{pontoId:2,chegada:"08:15",saida:"08:25"},{pontoId:3,chegada:"08:50",saida:"09:00"}],tempoTotalMin:20,distancia:9},
+    {id:3,data:"2026-09-22",motoristaId:1,pontos:[{pontoId:1,chegada:"08:00",saida:"08:00"},{pontoId:4,chegada:"08:40",saida:"09:15"}],tempoTotalMin:35,distancia:11},
+    {id:4,data:"2026-09-22",motoristaId:2,pontos:[{pontoId:1,chegada:"07:30",saida:"07:30"},{pontoId:5,chegada:"07:55",saida:"08:20"},{pontoId:6,chegada:"08:45",saida:"09:05"}],tempoTotalMin:45,distancia:17},
+    {id:5,data:"2026-09-23",motoristaId:3,pontos:[{pontoId:1,chegada:"09:00",saida:"09:00"},{pontoId:2,chegada:"09:20",saida:"09:30"},{pontoId:6,chegada:"10:00",saida:"10:50"}],tempoTotalMin:60,distancia:13},
+    {id:6,data:"2026-09-24",motoristaId:2,pontos:[{pontoId:1,chegada:"08:10",saida:"08:10"},{pontoId:3,chegada:"08:35",saida:"08:42"},{pontoId:5,chegada:"09:05",saida:"09:15"}],tempoTotalMin:17,distancia:8}
+  ],
+  param: {combustivel:6.10, custoKm:0.85, jornada:8}
+};
+let nextId = k => (Math.max(0,...db[k].map(x=>x.id))+1);
+let charts = {};
+
+function render(){
+  const navHtml = tabs.map(x=>`<button class="${x.k===active?'active':''}" onclick="setTab('${x.k}')"><span class="dot"></span>${x.t}</button>`).join("");
+  document.getElementById("side-nav").innerHTML = navHtml;
+  document.getElementById("topbar").innerHTML = navHtml;
+  const [ti,sub] = titles[active];
+  const mainEl = document.getElementById("main");
+  mainEl.classList.remove("fade-in");
+  mainEl.innerHTML =
+    `<div class="headerbar"><div><h1 class="page-title">${ti}</h1><p class="page-sub">${sub}</p></div></div>` +
+    renderStats() +
+    ({cadastros: renderCadastros, roteiros: renderRoteiros, dashboard: renderDashboard, parametros: renderParametros})[active]();
+  void mainEl.offsetWidth;
+  mainEl.classList.add("fade-in");
+  animateStatValues();
+  if(active==="dashboard") setTimeout(buildCharts,0);
+}
+function setTab(t){ active=t; render(); }
+
+function animateStatValues(){
+  document.querySelectorAll(".stat .val, .doughnut-mid b").forEach(el=>{
+    const txt = el.textContent.trim();
+    const m = txt.match(/^([^\d]*)([\d.]+)(.*)$/);
+    if(!m) return;
+    const [,prefix,numStr,suffix] = m;
+    const target = parseFloat(numStr.replace(",", "."));
+    if(isNaN(target)) return;
+    const decimals = numStr.includes(".") ? numStr.split(".")[1].length : 0;
+    let start = null; const dur = 650;
+    function step(ts){
+      if(!start) start = ts;
+      const p = Math.min((ts-start)/dur, 1);
+      const eased = 1 - Math.pow(1-p, 3);
+      el.textContent = prefix + (target*eased).toFixed(decimals) + suffix;
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+function renderStats(){
+  const tempoTotal = db.roteiros.reduce((s,r)=>s+r.tempoTotalMin,0);
+  const custoMedio = db.roteiros.length? (db.roteiros.reduce((s,r)=>s+custoRoteiro(r),0)/db.roteiros.length):0;
+  return `<div class="stats">
+    <div class="stat hero"><div class="lbl">Tempo parado total</div><div class="val">${tempoTotal} min</div></div>
+    <div class="stat"><div class="lbl">Roteiros</div><div class="val">${db.roteiros.length}</div></div>
+    <div class="stat"><div class="lbl">Pontos cadastrados</div><div class="val">${db.pontos.length}</div></div>
+    <div class="stat"><div class="lbl">Custo médio</div><div class="val">R$ ${custoMedio.toFixed(2)}</div></div>
+  </div>`;
+}
+
+function renderCadastros(){
+  return `
+  <div class="card"><h2>Motoristas / Motoboys</h2>
+    <div class="row">
+      <div><label>Nome</label><input id="m_nome"></div>
+      <div><label>Telefone</label><input id="m_tel"></div>
+      <div><label>Documento</label><input id="m_doc"></div>
+      <div><label>Veículo</label><input id="m_veic"></div>
+      <div><label>Rendimento (km/litro)</label><input id="m_kml" type="number" step="0.1"></div>
+    </div>
+    <button class="btn" onclick="addMotorista()">Adicionar</button>
+    <div class="wrap-x"><table><tr><th>Nome</th><th>Veículo</th><th>km/L</th></tr>
+    ${db.motoristas.map(m=>`<tr><td>${m.nome}</td><td>${m.veiculo}</td><td>${m.kmLitro}</td></tr>`).join("")}
+    </table></div>
+  </div>
+  <div class="card"><h2>Gerentes / Coordenadores</h2>
+    <div class="row">
+      <div><label>Nome</label><input id="g_nome"></div>
+      <div><label>Telefone</label><input id="g_tel"></div>
+      <div><label>E-mail</label><input id="g_email"></div>
+    </div>
+    <button class="btn secondary" onclick="addGerente()">Adicionar</button>
+    <div class="wrap-x"><table><tr><th>Nome</th><th>E-mail</th></tr>
+    ${db.gerentes.map(g=>`<tr><td>${g.nome}</td><td>${g.email}</td></tr>`).join("")}
+    </table></div>
+  </div>
+  <div class="card"><h2>Pontos</h2>
+    <div class="row"><div><label>Endereço</label><input id="p_end"></div></div>
+    <button class="btn" onclick="addPonto()">Adicionar</button>
+    <div class="wrap-x"><table><tr><th>#</th><th>Endereço</th></tr>
+    ${db.pontos.map(p=>`<tr><td>${p.id}</td><td>${p.endereco}</td></tr>`).join("")}
+    </table></div>
+  </div>`;
+}
+function addMotorista(){
+  const nome=m_nome.value.trim(); if(!nome)return;
+  db.motoristas.push({id:nextId("motoristas"),nome,telefone:m_tel.value,documento:m_doc.value,veiculo:m_veic.value,kmLitro:parseFloat(m_kml.value)||10});
+  render();
+}
+function addGerente(){
+  const nome=g_nome.value.trim(); if(!nome)return;
+  db.gerentes.push({id:nextId("gerentes"),nome,telefone:g_tel.value,email:g_email.value});
+  render();
+}
+function addPonto(){
+  const e=p_end.value.trim(); if(!e)return;
+  db.pontos.push({id:nextId("pontos"),endereco:e});
+  render();
+}
+
+let currentPontos = [];
+function renderRoteiros(){
+  const optM = db.motoristas.map(m=>`<option value="${m.id}">${m.nome}</option>`).join("");
+  const optP = db.pontos.map(p=>`<option value="${p.id}">${p.endereco}</option>`).join("");
+  return `
+  <div class="card"><h2>Montar novo roteiro</h2>
+    <div class="row">
+      <div><label>Motorista</label><select id="r_mot">${optM}</select></div>
+      <div><label>Data</label><input id="r_data" type="date"></div>
+      <div><label>Distância total (km)</label><input id="r_dist" type="number" step="0.1" value="12"></div>
+    </div>
+    <label>Adicionar ponto ao roteiro (ordem sequencial)</label>
+    <div class="ptorow">
+      <select id="add_pto">${optP}</select>
+      <input id="add_chegada" type="time">
+      <input id="add_saida" type="time">
+      <button class="btn secondary" onclick="addPontoRoteiro()">+ ponto</button>
+    </div>
+    <div class="small">1º ponto adicionado = partida (RN01: não conta tempo parado).</div>
+    <div class="wrap-x"><table><tr><th>Ordem</th><th>Ponto</th><th>Chegada</th><th>Saída</th><th>Parado</th></tr>
+    ${currentPontos.map((cp,i)=>{
+      const t = i===0?0:tempoParadoMin(cp.chegada,cp.saida);
+      return `<tr><td>${i+1}</td><td>${nomePonto(cp.pontoId)}</td><td>${cp.chegada||"-"}</td><td>${cp.saida||"-"}</td><td>${i===0?"—":t+" min"}</td></tr>`;
+    }).join("")}
+    </table></div>
+    <button class="btn" onclick="salvarRoteiro()">Salvar roteiro</button>
+  </div>
+  <div class="card"><h2>Roteiros registrados</h2>
+    <div class="wrap-x"><table><tr><th>Data</th><th>Motorista</th><th>Pontos</th><th>Tempo parado</th><th>Distância</th><th>Custo</th></tr>
+    ${db.roteiros.map(r=>`<tr><td>${r.data}</td><td>${nomeMotorista(r.motoristaId)}</td><td>${r.pontos.length}</td><td>${r.tempoTotalMin} min</td><td>${r.distancia} km</td><td>R$ ${custoRoteiro(r).toFixed(2)}</td></tr>`).join("") || "<tr><td colspan=6 class='small'>Nenhum roteiro ainda.</td></tr>"}
+    </table></div>
+  </div>`;
+}
+function nomePonto(id){ const p=db.pontos.find(x=>x.id==id); return p?p.endereco:"?"; }
+function nomeMotorista(id){ const m=db.motoristas.find(x=>x.id==id); return m?m.nome:"?"; }
+function tempoParadoMin(ch,sa){
+  if(!ch||!sa) return 0;
+  const [h1,m1]=ch.split(":").map(Number), [h2,m2]=sa.split(":").map(Number);
+  return Math.max(0,(h2*60+m2)-(h1*60+m1));
+}
+function addPontoRoteiro(){
+  currentPontos.push({pontoId:add_pto.value, chegada:add_chegada.value, saida:add_saida.value});
+  render();
+}
+function salvarRoteiro(){
+  if(currentPontos.length<2){ alert("Adicione ao menos 2 pontos (partida + 1)."); return; }
+  const tempoTotalMin = currentPontos.slice(1).reduce((s,cp)=>s+tempoParadoMin(cp.chegada,cp.saida),0);
+  db.roteiros.push({
+    id:nextId("roteiros"), data:r_data.value||new Date().toISOString().slice(0,10),
+    motoristaId:parseInt(r_mot.value), pontos:currentPontos, tempoTotalMin,
+    distancia:parseFloat(r_dist.value)||0
+  });
+  currentPontos=[];
+  render();
+}
+function custoRoteiro(r){
+  const mot = db.motoristas.find(m=>m.id==r.motoristaId);
+  const kml = mot?mot.kmLitro:1;
+  const litros = kml?r.distancia/kml:0;
+  return litros*db.param.combustivel;
+}
+
+function renderParametros(){
+  const p=db.param;
+  return `<div class="card"><h2>Custo e jornada</h2>
+    <label>Valor do combustível (R$/litro)</label><input id="pp_comb" type="number" step="0.01" value="${p.combustivel}">
+    <label>Custo por km percorrido (R$) — referência alternativa</label><input id="pp_km" type="number" step="0.01" value="${p.custoKm}">
+    <label>Jornada padrão (horas/dia)</label><input id="pp_jor" type="number" step="0.5" value="${p.jornada}">
+    <button class="btn" onclick="salvarParam()">Salvar parâmetros</button>
+    <div class="small" style="margin-top:8px">RN07: custo do roteiro = (distância ÷ km/litro do veículo) × valor do combustível.</div>
+  </div>`;
+}
+function salvarParam(){
+  db.param.combustivel=parseFloat(pp_comb.value)||db.param.combustivel;
+  db.param.custoKm=parseFloat(pp_km.value)||db.param.custoKm;
+  db.param.jornada=parseFloat(pp_jor.value)||db.param.jornada;
+  render();
+}
+
+function renderDashboard(){
+  const totalJornadaMin = db.param.jornada*60;
+  const tempoTotal = db.roteiros.reduce((s,r)=>s+r.tempoTotalMin,0);
+  const pct = db.roteiros.length? Math.round(100*(tempoTotal/db.roteiros.length)/totalJornadaMin) : 0;
+  return `
+  <div class="grid2">
+    <div class="card"><h2>Tempo parado por dia <span class="pct">min</span></h2>
+      <canvas id="chBar" height="160"></canvas>
+      <div class="legend"><span><i style="background:var(--orange)"></i>tempo parado</span></div>
+    </div>
+    <div class="card"><h2>Ocupação da jornada</h2>
+      <div class="doughnut-wrap"><canvas id="chDonut"></canvas>
+        <div class="doughnut-mid"><b>${pct}%</b><span>parado / jornada</span></div>
+      </div>
+      <ul class="mini">
+        <li><span>Jornada padrão</span><b>${db.param.jornada} h</b></li>
+        <li><span>Combustível</span><b>R$ ${db.param.combustivel.toFixed(2)}</b></li>
+        <li><span>Custo por km</span><b>R$ ${db.param.custoKm.toFixed(2)}</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card"><h2>Tendência de custo por roteiro</h2>
+    <canvas id="chLine" height="110"></canvas>
+    <div class="legend"><span><i style="background:var(--navy)"></i>custo estimado (R$)</span><span><i style="background:var(--orange)"></i>distância (km)</span></div>
+  </div>`;
+}
+
+function buildCharts(){
+  Object.values(charts).forEach(c=>c && c.destroy());
+  const dias = db.roteiros.map(r=>r.data.slice(5));
+  const tempos = db.roteiros.map(r=>r.tempoTotalMin);
+  const custos = db.roteiros.map(r=>+custoRoteiro(r).toFixed(2));
+  const dist = db.roteiros.map(r=>r.distancia);
+  const navy = '#1c3a5e', orange = '#f2a93b';
+  Chart.defaults.animation = {duration:900, easing:'easeOutQuart'};
+  Chart.defaults.transitions.active.animation.duration = 300;
+
+  const barEl = document.getElementById('chBar');
+  if(barEl) charts.bar = new Chart(barEl, {type:'bar',
+    data:{labels:dias.length?dias:['-'], datasets:[{data:tempos.length?tempos:[0], backgroundColor:orange, borderRadius:4, maxBarThickness:34, hoverBackgroundColor:navy}]},
+    options:{animation:{duration:900,easing:'easeOutQuart',delay:(ctx)=>ctx.dataIndex*80},
+      plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'}}, x:{grid:{display:false}}}}
+  });
+
+  const totalJornadaMin = db.param.jornada*60;
+  const tempoTotal = db.roteiros.reduce((s,r)=>s+r.tempoTotalMin,0);
+  const media = db.roteiros.length? tempoTotal/db.roteiros.length : 0;
+  const donutEl = document.getElementById('chDonut');
+  if(donutEl) charts.donut = new Chart(donutEl, {type:'doughnut',
+    data:{datasets:[{data:[media, Math.max(totalJornadaMin-media,0)], backgroundColor:[navy, '#e3e8ee'], borderWidth:0, hoverOffset:6}]},
+    options:{cutout:'72%', animation:{animateRotate:true, animateScale:true, duration:1000, easing:'easeOutCubic'},
+      plugins:{legend:{display:false}, tooltip:{enabled:false}}}
+  });
+
+  const lineEl = document.getElementById('chLine');
+  if(lineEl) charts.line = new Chart(lineEl, {type:'line',
+    data:{labels:dias.length?dias:['-'], datasets:[
+      {label:'Custo', data:custos.length?custos:[0], borderColor:navy, backgroundColor:'rgba(28,58,94,.12)', fill:true, tension:.4, pointRadius:3, pointHoverRadius:6},
+      {label:'Distância', data:dist.length?dist:[0], borderColor:orange, backgroundColor:'rgba(242,169,59,.15)', fill:true, tension:.4, pointRadius:3, pointHoverRadius:6}
+    ]},
+    options:{animation:{duration:1100,easing:'easeOutQuart'}, interaction:{intersect:false,mode:'index'},
+      plugins:{legend:{display:false}}, scales:{y:{grid:{color:'#eef1f5'}}, x:{grid:{display:false}}}}
+  });
+}
+render();
+</script>
+</body>
+</html>
