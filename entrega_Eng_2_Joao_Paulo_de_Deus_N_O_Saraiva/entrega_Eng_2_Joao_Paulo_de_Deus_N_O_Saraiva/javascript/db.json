@@ -536,6 +536,57 @@
           "saida": "2026-09-27T22:56"
         }
       ]
+    },
+    {
+      "id": 14,
+      "data": "2026-09-28",
+      "motoristaId": 4,
+      "gerenteId": 1,
+      "distanciaTotalKm": 9,
+      "pontos": [
+        {
+          "ordem": 1,
+          "pontoId": 1,
+          "chegada": "2026-09-28T16:12",
+          "saida": "2026-09-28T16:21"
+        },
+        {
+          "ordem": 2,
+          "pontoId": 3,
+          "chegada": "2026-09-28T16:21",
+          "saida": "2026-09-28T16:32"
+        },
+        {
+          "ordem": 3,
+          "pontoId": 6,
+          "chegada": "2026-09-28T16:37",
+          "saida": "2026-09-28T16:37"
+        },
+        {
+          "ordem": 4,
+          "pontoId": 8,
+          "chegada": "2026-09-28T16:37",
+          "saida": "2026-09-28T16:37"
+        },
+        {
+          "ordem": 5,
+          "pontoId": 9,
+          "chegada": "2026-09-28T16:37",
+          "saida": "2026-09-28T16:37"
+        },
+        {
+          "ordem": 6,
+          "pontoId": 10,
+          "chegada": "2026-09-28T16:37",
+          "saida": "2026-09-28T16:37"
+        },
+        {
+          "ordem": 7,
+          "pontoId": 5,
+          "chegada": "2026-09-28T16:37",
+          "saida": "2026-09-28T16:37"
+        }
+      ]
     }
   ],
   "auditoria": [
@@ -718,6 +769,132 @@
       "valorAntigo": null,
       "valorNovo": "2026-09-27T22:56",
       "dataHora": "2026-09-28T01:56:09.495Z"
+    },
+    {
+      "id": 21,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_CHEGADA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:12",
+      "dataHora": "2026-09-28T19:12:52.713Z"
+    },
+    {
+      "id": 22,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_SAIDA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:21",
+      "dataHora": "2026-09-28T19:21:03.012Z"
+    },
+    {
+      "id": 23,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_CHEGADA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:21",
+      "dataHora": "2026-09-28T19:21:14.163Z"
+    },
+    {
+      "id": 24,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_SAIDA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:32",
+      "dataHora": "2026-09-28T19:32:13.810Z"
+    },
+    {
+      "id": 25,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_CHEGADA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:14.791Z"
+    },
+    {
+      "id": 26,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_SAIDA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:16.649Z"
+    },
+    {
+      "id": 27,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_CHEGADA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:19.569Z"
+    },
+    {
+      "id": 28,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_SAIDA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:19.949Z"
+    },
+    {
+      "id": 29,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_CHEGADA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:20.564Z"
+    },
+    {
+      "id": 30,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_SAIDA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:20.923Z"
+    },
+    {
+      "id": 31,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_CHEGADA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:22.021Z"
+    },
+    {
+      "id": 32,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_SAIDA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:22.519Z"
+    },
+    {
+      "id": 33,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_CHEGADA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:23.070Z"
+    },
+    {
+      "id": 34,
+      "entidade": "roteiro_ponto",
+      "entidadeId": 14,
+      "acao": "REGISTRO_SAIDA",
+      "valorAntigo": null,
+      "valorNovo": "2026-09-28T16:37",
+      "dataHora": "2026-09-28T19:37:23.459Z"
     }
   ]
 }

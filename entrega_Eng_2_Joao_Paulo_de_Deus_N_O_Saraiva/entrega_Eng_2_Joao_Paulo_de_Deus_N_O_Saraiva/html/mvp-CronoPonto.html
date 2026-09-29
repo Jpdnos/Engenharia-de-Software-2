@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ParaRota — Dashboard</title>
+<title>CronoPonto — Dashboard</title>
+<meta name="description" content="CronoPonto — Cada minuto parado, no seu controle.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -29,6 +30,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 .login-card{background:#fff;border-radius:14px;padding:32px 28px;max-width:380px;width:100%;box-shadow:0 12px 32px rgba(28,58,94,.15);}
 .login-card .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
 .login-card h1{font-family:var(--font-display);font-size:1.3rem;margin:0;}
+.login-card .tagline{display:block;font-size:.72rem;color:var(--muted);font-weight:500;margin-top:1px;}
+.side .tagline{display:block;font-size:.66rem;color:#a9c0d6;margin-top:1px;letter-spacing:.02em;}
 .login-card p{color:var(--muted);font-size:.85rem;margin:2px 0 18px;}
 .perfil-opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0 4px;}
 .perfil-opts button{border:1.5px solid var(--line);background:#fbfcfe;border-radius:8px;padding:10px 6px;font-family:var(--font-ui);font-size:.78rem;cursor:pointer;transition:.15s;}
@@ -201,6 +204,32 @@ body:has(.driver-shell){background:linear-gradient(180deg,#1c3a5e 0,#1c3a5e 190p
 .tl-item.active .actions .btn:not(.secondary):not(:disabled){box-shadow:0 6px 14px rgba(242,169,59,.4);}
 @media (max-width:900px){ .driver-stats{grid-template-columns:repeat(3,1fr);gap:8px;} .driver-stats .s{padding:10px 10px;} .driver-stats .s .l{font-size:.55rem;} .driver-stats .s .v{font-size:.95rem;} }
 body:has(.driver-shell){background:linear-gradient(180deg,#1c3a5e 0,#1c3a5e 200px,var(--bg) 200px);}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px;}
+.steps span{display:inline-flex;align-items:center;gap:7px;font-size:.78rem;color:var(--muted);background:#f3f5f8;border-radius:20px;padding:5px 12px 5px 6px;}
+.steps span b{width:20px;height:20px;border-radius:50%;background:var(--line);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;}
+.steps span.cur{background:#fff6e8;color:var(--text);font-weight:600;box-shadow:0 0 0 1.5px var(--orange);}
+.steps span.cur b{background:var(--orange);color:#1c2b3a;}
+.steps span.done b{background:var(--good);color:#fff;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px;}
+.chips span{background:#f3f5f8;border-radius:10px;padding:7px 12px;font-size:.88rem;font-weight:600;}
+.chips span i{display:block;font-style:normal;font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;}
+.chips span.lock{background:transparent;color:var(--muted);font-size:.74rem;font-weight:500;align-self:center;}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+.btnrow .btn{margin-top:0;}
+button.btn:disabled{opacity:.45;cursor:not-allowed;}
+
+.filtro-periodo{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin-bottom:16px;}
+.filtro-periodo .fp-field{display:flex;flex-direction:column;gap:4px;}
+.filtro-periodo label{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;}
+.filtro-periodo input, .filtro-periodo select{border:1.5px solid var(--line);border-radius:8px;padding:7px 9px;font-family:var(--font-ui);font-size:.82rem;}
+.filtro-periodo .fp-info{font-size:.78rem;color:var(--muted);margin-left:auto;align-self:center;}
+.expand-row{cursor:pointer;}
+.expand-row:hover{background:#f7f9fc;}
+.expand-row .car{display:inline-block;transition:transform .18s;margin-right:6px;color:var(--muted);}
+.expand-row.open .car{transform:rotate(90deg);}
+.sub-table{background:#f8fafc;border-radius:10px;margin:4px 0 10px;padding:8px 10px;}
+.sub-table table{margin-top:0;}
+.sub-table th{color:var(--muted);}
 </style>
 </head>
 <body>
@@ -209,7 +238,7 @@ body:has(.driver-shell){background:linear-gradient(180deg,#1c3a5e 0,#1c3a5e 200p
 
 <script>
 const API = "http://localhost:3001/api";
-console.log("ParaRota UI v3 (graficos com tooltip e legenda)");
+console.log("CronoPonto UI v3 (graficos com tooltip e legenda)");
 function showError(msg){
   document.getElementById("err").innerHTML =
     `<div class="errbar"><span>⚠ ${msg}</span><button onclick="document.getElementById('err').innerHTML=''">fechar</button></div>`;
@@ -247,7 +276,7 @@ function renderLogin(){
   root.className = "fade-in";
   root.innerHTML = `
   <div class="login-wrap"><div class="login-card">
-    <div class="brand"><svg width="30" height="30" viewBox="0 0 30 30"><circle cx="5" cy="15" r="3.4" fill="#1c3a5e"/><line x1="8.4" y1="15" x2="14.6" y2="9" stroke="#94a9bd" stroke-width="1.6"/><circle cx="15" cy="8" r="2.6" fill="#f2a93b"/><line x1="17.2" y1="9" x2="21.8" y2="15" stroke="#94a9bd" stroke-width="1.6"/><circle cx="24" cy="16" r="3.4" fill="#1c3a5e"/></svg><h1>ParaRota</h1></div>
+    <div class="brand"><svg width="30" height="30" viewBox="0 0 30 30"><circle cx="5" cy="15" r="3.4" fill="#1c3a5e"/><line x1="8.4" y1="15" x2="14.6" y2="9" stroke="#94a9bd" stroke-width="1.6"/><circle cx="15" cy="8" r="2.6" fill="#f2a93b"/><line x1="17.2" y1="9" x2="21.8" y2="15" stroke="#94a9bd" stroke-width="1.6"/><circle cx="24" cy="16" r="3.4" fill="#1c3a5e"/></svg><div><h1>CronoPonto</h1><span class="tagline">Cada minuto parado, no seu controle.</span></div></div>
     <p>Entre com seu perfil para continuar.</p>
     ${apiOffline?`<div class="login-err">Não consegui falar com a API em ${API}. Rode <code>npm start</code> no backend antes de entrar.</div>`:""}
     <div class="perfil-opts" id="perfilOpts">
@@ -301,7 +330,7 @@ function logout() {
     try { if (charts[k]) charts[k].destroy(); } catch (e) {}
   });
   charts = {};
-  session = null; driverRoteiroId = null; currentPontos = [];
+  session = null; driverRoteiroId = null; currentPontos = []; draft = null;
   renderLogin(); 
 }
 
@@ -406,7 +435,7 @@ function renderGestorShell(){
   root.innerHTML = `<div class="shell">
     <aside class="side">
       <div class="profile"><div class="avatar"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="#1c3a5e"/><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6" stroke="#1c3a5e" stroke-width="2" stroke-linecap="round"/></svg></div>
-      <div class="name">ParaRota</div><div class="mail">${esc(session.nome)} · ${esc(session.perfil)}</div></div>
+      <div class="name">CronoPonto</div><span class="tagline">Cada minuto parado, no seu controle.</span><div class="mail">${esc(session.nome)} · ${esc(session.perfil)}</div></div>
       <nav id="side-nav"></nav>
       <button class="logout-onavy" onclick="logout()">Sair</button>
       <div class="foot">Engenharia de Software II<br>Projeto de Interface e Interação</div>
@@ -515,40 +544,99 @@ const addPonto = guarded(async function(){
 });
 
 let currentPontos = [];
+let draft = null;
+let histFiltro = { de:"", ate:"", motoristaId:"" };
+let expandidoHist = new Set();
+function toggleRoteiroHist(id){ expandidoHist.has(id)?expandidoHist.delete(id):expandidoHist.add(id); renderTab(); }
+function aplicarFiltroHist(){ histFiltro={de:h_de.value, ate:h_ate.value, motoristaId:h_mot.value}; renderTab(); }
+function limparFiltroHist(){ histFiltro={de:"",ate:"",motoristaId:""}; renderTab(); } // dados do passo 1, travados até terminar ou cancelar o roteiro
 function renderRoteiros(){
   const optM = cache.motoristas.map(m=>`<option value="${m.id}">${esc(m.nome)}</option>`).join("");
   const optP = cache.pontos.map(p=>`<option value="${p.id}">${esc(p.endereco)}</option>`).join("");
-  return `
-  <div class="card"><h2>Montar novo roteiro</h2>
+  const passo = draft ? (currentPontos.length>=2 ? 3 : 2) : 1;
+  const steps = `<div class="steps">${["Dados do percurso","Pontos","Terminar"].map((t,i)=>`<span class="${i+1<passo?'done':''} ${i+1===passo?'cur':''}"><b>${i+1}</b>${t}</span>`).join("")}</div>`;
+  const listaFiltrada = cache.roteiros
+    .filter(r => (!histFiltro.de||r.data>=histFiltro.de) && (!histFiltro.ate||r.data<=histFiltro.ate) && (!histFiltro.motoristaId||r.motoristaId===Number(histFiltro.motoristaId)))
+    .sort((a,b)=>b.data.localeCompare(a.data));
+  const optMHist = cache.motoristas.map(m=>`<option value="${m.id}" ${histFiltro.motoristaId==String(m.id)?"selected":""}>${esc(m.nome)}</option>`).join("");
+  const registrados = `
+  <div class="card"><h2>Roteiros registrados</h2>
+    <div class="filtro-periodo">
+      <div class="fp-field"><label>De</label><input id="h_de" type="date" value="${histFiltro.de}"></div>
+      <div class="fp-field"><label>Até</label><input id="h_ate" type="date" value="${histFiltro.ate}"></div>
+      <div class="fp-field"><label>Motorista</label><select id="h_mot"><option value="">Todos</option>${optMHist}</select></div>
+      <button class="btn secondary" onclick="aplicarFiltroHist()">Filtrar</button>
+      <button class="btn secondary" onclick="limparFiltroHist()">Limpar</button>
+      <div class="fp-info">${listaFiltrada.length} de ${cache.roteiros.length} roteiro(s)</div>
+    </div>
+    <div class="small">Clique em um roteiro para ver o endereço, a chegada e a saída de cada ponto.</div>
+    <div class="wrap-x"><table><tr><th></th><th>Data</th><th>Motorista</th><th>Pontos</th><th>Tempo parado</th><th>Distância</th><th>Custo</th></tr>
+    ${listaFiltrada.map(r=>{
+      const aberto = expandidoHist.has(r.id);
+      const linha = `<tr class="expand-row ${aberto?'open':''}" onclick="toggleRoteiroHist(${r.id})"><td><span class="car">▶</span></td><td>${r.data}</td><td>${esc(nomeMotorista(r.motoristaId))}</td><td>${r.pontos.length}</td><td>${r.tempoTotalParadoMin} min</td><td>${r.distanciaTotalKm} km</td><td>R$ ${r.custoEstimado.toFixed(2)}</td></tr>`;
+      const detalhe = aberto ? `<tr><td colspan="7"><div class="sub-table"><table><tr><th>Ordem</th><th>Endereço</th><th>Chegada</th><th>Saída</th><th>Tempo parado</th></tr>
+        ${r.pontos.map(p=>`<tr><td>${p.ordem}</td><td>${nomePonto(p.pontoId)}${p.ordem===1?' <span class="small">(partida)</span>':''}</td><td>${p.chegada?p.chegada.replace('T',' '):'-'}</td><td>${p.saida?p.saida.replace('T',' '):'-'}</td><td>${p.tempoParadoMin!=null?p.tempoParadoMin+' min':'-'}</td></tr>`).join("")}
+        </table></div></td></tr>` : "";
+      return linha+detalhe;
+    }).join("") || "<tr><td colspan=7 class='small'>Nenhum roteiro no filtro selecionado.</td></tr>"}
+    </table></div>
+  </div>`;
+  if(!draft){
+    return `
+  <div class="card"><h2>Montar novo roteiro</h2>${steps}
     <div class="row">
       <div><label>Motorista</label><select id="r_mot">${optM}</select></div>
-      <div><label>Data</label><input id="r_data" type="date"></div>
-      <div><label>Distância total (km)</label><input id="r_dist" type="number" step="0.1" value="12"></div>
+      <div><label>Data</label><input id="r_data" type="date" value="${hojeISO()}"></div>
+      <div><label>Distância total (km)</label><input id="r_dist" type="number" step="0.1" min="0" placeholder="ex.: 12"></div>
+    </div>
+    <div class="small">Estes dados ficam travados até você terminar o roteiro.</div>
+    <button class="btn" onclick="iniciarRoteiro()">Iniciar roteiro</button>
+  </div>` + registrados;
+  }
+  const mot = cache.motoristas.find(m=>m.id===draft.motoristaId);
+  return `
+  <div class="card"><h2>Montar novo roteiro</h2>${steps}
+    <div class="chips">
+      <span><i>Motorista</i>${esc(mot?mot.nome:"?")}</span>
+      <span><i>Data</i>${draft.data}</span>
+      <span><i>Distância</i>${draft.dist} km</span>
+      <span class="lock">🔒 travado</span>
     </div>
     <label>Adicionar ponto ao roteiro (ordem sequencial)</label>
     <div class="ptorow"><select id="add_pto">${optP}</select><button class="btn secondary" onclick="addPontoRoteiro()">+ ponto</button></div>
     <div class="small">1º ponto adicionado = partida (RN01). Chegada/saída são registradas pelo próprio motorista, no login dele.</div>
-    <div class="wrap-x"><table><tr><th>Ordem</th><th>Ponto</th></tr>
-    ${currentPontos.map((cp,i)=>`<tr><td>${i+1}</td><td>${nomePonto(cp.pontoId)}</td></tr>`).join("")}
+    <div class="wrap-x"><table><tr><th>Ordem</th><th>Ponto</th><th></th></tr>
+    ${currentPontos.map((cp,i)=>`<tr><td>${i+1}</td><td>${nomePonto(cp.pontoId)}${i===0?' <span class="small">(partida)</span>':''}</td><td>${i===currentPontos.length-1?`<button class="btn small secondary" onclick="removerUltimoPonto()">remover</button>`:""}</td></tr>`).join("") || "<tr><td colspan=3 class='small'>Nenhum ponto adicionado.</td></tr>"}
     </table></div>
-    <button class="btn" onclick="salvarRoteiro()">Salvar roteiro</button>
-  </div>
-  <div class="card"><h2>Roteiros registrados</h2>
-    <div class="wrap-x"><table><tr><th>Data</th><th>Motorista</th><th>Pontos</th><th>Tempo parado</th><th>Distância</th><th>Custo</th></tr>
-    ${cache.roteiros.map(r=>`<tr><td>${r.data}</td><td>${esc(nomeMotorista(r.motoristaId))}</td><td>${r.pontos.length}</td><td>${r.tempoTotalParadoMin} min</td><td>${r.distanciaTotalKm} km</td><td>R$ ${r.custoEstimado.toFixed(2)}</td></tr>`).join("") || "<tr><td colspan=6 class='small'>Nenhum roteiro ainda.</td></tr>"}
-    </table></div>
-  </div>`;
+    <div class="btnrow">
+      <button class="btn" onclick="salvarRoteiro()" ${currentPontos.length<2?"disabled":""}>Terminar roteiro</button>
+      <button class="btn secondary" onclick="cancelarRoteiro()">Cancelar roteiro</button>
+    </div>
+    ${currentPontos.length<2?'<div class="small">Adicione ao menos 2 pontos (partida + 1) para terminar.</div>':""}
+  </div>` + registrados;
 }
 function nomePonto(id){ const p=cache.pontos.find(x=>x.id==id); return p?esc(p.endereco):"?"; }
 function nomeMotorista(id){ const m=cache.motoristas.find(x=>x.id==id); return m?m.nome:"?"; }
+function iniciarRoteiro(){
+  const mot = Number(r_mot.value), data = r_data.value, dist = parseFloat(r_dist.value);
+  if(!mot){ showError("Cadastre um motorista antes de montar um roteiro."); return; }
+  if(!data){ showError("Informe a data do roteiro."); return; }
+  if(!(dist>0)){ showError("Informe a distância total do percurso (km)."); return; }
+  clearError();
+  draft = { motoristaId:mot, data, dist };
+  currentPontos = [];
+  renderTab();
+}
 function addPontoRoteiro(){ currentPontos.push({pontoId:add_pto.value}); renderTab(); }
+function removerUltimoPonto(){ currentPontos.pop(); renderTab(); }
+function cancelarRoteiro(){ draft = null; currentPontos = []; renderTab(); }
 const salvarRoteiro = guarded(async function(){
+  if(!draft) return;
   if(currentPontos.length<2){ showError("Adicione ao menos 2 pontos (partida + 1)."); return; }
   const pontos = currentPontos.map((cp,i)=>({ordem:i+1, pontoId:Number(cp.pontoId)}));
   await api("/roteiros",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-    data:r_data.value||hojeISO(), motoristaId:Number(r_mot.value),
-    distanciaTotalKm:parseFloat(r_dist.value)||0, pontos})});
-  currentPontos=[]; await loadAll(); renderTab();
+    data:draft.data, motoristaId:draft.motoristaId, distanciaTotalKm:draft.dist, pontos})});
+  draft=null; currentPontos=[]; await loadAll(); renderTab();
 });
 
 function renderParametros(){
@@ -569,13 +657,33 @@ const salvarParam = guarded(async function(){
   await loadAll(); renderTab();
 });
 
+let dashFiltro = { de:"", ate:"", agrupar:"dia" };
+function setDashAgrupar(v){ dashFiltro.agrupar=v; renderTab(); }
+function aplicarPeriodoDash(){ dashFiltro.de=dash_de.value; dashFiltro.ate=dash_ate.value; renderTab(); }
+function limparPeriodoDash(){ dashFiltro={de:"",ate:"",agrupar:dashFiltro.agrupar}; renderTab(); }
+function roteirosNoPeriodo(){
+  return cache.roteiros.filter(r => (!dashFiltro.de||r.data>=dashFiltro.de) && (!dashFiltro.ate||r.data<=dashFiltro.ate));
+}
 function renderDashboard(){
+  const rp = roteirosNoPeriodo();
   const totalJornadaMin = cache.param.jornadaPadraoHoras*60;
-  const tempoTotal = cache.roteiros.reduce((s,r)=>s+r.tempoTotalParadoMin,0);
-  const pct = cache.roteiros.length? Math.round(100*(tempoTotal/cache.roteiros.length)/totalJornadaMin) : 0;
+  const tempoTotal = rp.reduce((s,r)=>s+r.tempoTotalParadoMin,0);
+  const pct = rp.length? Math.round(100*(tempoTotal/rp.length)/totalJornadaMin) : 0;
+  const rotulo = dashFiltro.agrupar==="mes" ? "por mês" : "por dia";
   return `
+  <div class="card filtro-periodo">
+    <div class="fp-field"><label>De</label><input id="dash_de" type="date" value="${dashFiltro.de}"></div>
+    <div class="fp-field"><label>Até</label><input id="dash_ate" type="date" value="${dashFiltro.ate}"></div>
+    <button class="btn secondary" onclick="aplicarPeriodoDash()">Filtrar período</button>
+    <button class="btn secondary" onclick="limparPeriodoDash()">Limpar</button>
+    <div class="rt-tabs" style="margin:0;">
+      <button class="${dashFiltro.agrupar==='dia'?'sel':''}" onclick="setDashAgrupar('dia')">Agrupar por dia</button>
+      <button class="${dashFiltro.agrupar==='mes'?'sel':''}" onclick="setDashAgrupar('mes')">Agrupar por mês</button>
+    </div>
+    <div class="fp-info">${rp.length} roteiro(s) no período · ${tempoTotal} min parados</div>
+  </div>
   <div class="grid2">
-    <div class="card"><h2>Tempo parado por dia <span class="pct">min</span></h2>
+    <div class="card"><h2>Tempo parado ${rotulo} <span class="pct">min</span></h2>
       <div style="position:relative;height:220px;"><canvas id="chBar"></canvas></div>
     </div>
     <div class="card"><h2>Tempo parado por Motorista</h2>
@@ -613,11 +721,16 @@ function buildCharts(){
   });
   charts = {};
 
-  const ordenados = [...cache.roteiros].sort((a,b)=>a.data.localeCompare(b.data));
-  const porDia = {};
-  ordenados.forEach(r=>{ porDia[r.data] = (porDia[r.data]||0) + r.tempoTotalParadoMin; });
-  const diasBar = Object.keys(porDia).map(d=>d.slice(5));
-  const temposBar = Object.values(porDia);
+  const rp = roteirosNoPeriodo();
+  const ordenados = [...rp].sort((a,b)=>a.data.localeCompare(b.data));
+  const porGrupo = {};
+  ordenados.forEach(r=>{
+    const chave = dashFiltro.agrupar==="mes" ? r.data.slice(0,7) : r.data;
+    porGrupo[chave] = (porGrupo[chave]||0) + r.tempoTotalParadoMin;
+  });
+  const chavesOrdenadas = Object.keys(porGrupo).sort();
+  const diasBar = chavesOrdenadas.map(k => dashFiltro.agrupar==="mes" ? k.slice(5)+"/"+k.slice(0,4) : k.slice(5));
+  const temposBar = chavesOrdenadas.map(k => porGrupo[k]);
   const dias = ordenados.map(r=>r.data.slice(5)+" #"+r.id);
   const custos = ordenados.map(r=>r.custoEstimado);
   const dist = ordenados.map(r=>r.distanciaTotalKm);
@@ -634,8 +747,8 @@ function buildCharts(){
   });
 
   const totalJornadaMin = cache.param.jornadaPadraoHoras*60;
-  const tempoTotal = cache.roteiros.reduce((s,r)=>s+r.tempoTotalParadoMin,0);
-  const media = cache.roteiros.length? tempoTotal/cache.roteiros.length : 0;
+  const tempoTotal = rp.reduce((s,r)=>s+r.tempoTotalParadoMin,0);
+  const media = rp.length? tempoTotal/rp.length : 0;
   const donutEl = document.getElementById('chDonut');
   if(donutEl) charts.donut = new Chart(donutEl, {type:'doughnut',
     data:{labels:['Tempo parado médio','Resto da jornada'], datasets:[{data:[Math.round(media), Math.max(Math.round(totalJornadaMin-media),0)], backgroundColor:[navy, '#e3e8ee'], borderWidth:0, hoverOffset:6}]},
@@ -657,7 +770,7 @@ function buildCharts(){
   const motEl = document.getElementById('chMot');
   if(motEl) {
     const aggMot = {};
-    cache.roteiros.forEach(r => {
+    rp.forEach(r => {
       const mNome = nomeMotorista(r.motoristaId) || 'Desconhecido';
       aggMot[mNome] = (aggMot[mNome] || 0) + r.tempoTotalParadoMin;
     });

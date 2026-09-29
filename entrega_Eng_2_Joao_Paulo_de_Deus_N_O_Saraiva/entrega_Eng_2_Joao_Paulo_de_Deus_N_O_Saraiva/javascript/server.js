@@ -6,7 +6,7 @@ const db = require("./db_2.js"); // O arquivo de banco de dados fornecido
 const app = express();
 const fs = require("fs");
 // aceita a pasta ../html ou o HTML na mesma pasta do server.js
-const htmlDir = fs.existsSync(path.join(__dirname, "..", "html", "mvp-tempo-parado.html"))
+const htmlDir = fs.existsSync(path.join(__dirname, "..", "html", "mvp-CronoPonto.html"))
   ? path.join(__dirname, "..", "html") : __dirname;
 
 app.use(cors());
@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(express.static(htmlDir, { etag: false, setHeaders: res => res.setHeader("Cache-Control", "no-store") }));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(htmlDir, "mvp-tempo-parado.html"));
+  res.sendFile(path.join(htmlDir, "mvp-CronoPonto.html"));
 });
 
 // Verificação de saúde da API (usada no boot do frontend)
