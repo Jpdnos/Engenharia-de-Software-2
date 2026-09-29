@@ -341,7 +341,7 @@ async function loadAll(){
   cache = { motoristas, gerentes, pontos, roteiros, param };
 }
 
-/* =========================== VISÃO MOTORISTA =========================== */
+/* =========================== VISAO MOTORISTA =========================== */
 let driverRoteiroId = null;
 function iniciais(nome){ return nome.split(" ").filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join(""); }
 
@@ -452,7 +452,7 @@ const ICONS = {
   parametros:'<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>'
 };
 function renderTab(){
-  // Limpar gráficos em memória ANTES de reescrever o HTML do separador
+  // Limpar graficos em memoria antes de reescrever o HTML do separador
   Object.keys(charts).forEach(k => {
     try { if (charts[k]) charts[k].destroy(); } catch (e) {}
   });
@@ -766,7 +766,7 @@ function buildCharts(){
       plugins:{legend:leg, tooltip:{...tip, callbacks:{label:c=>' '+c.dataset.label+': '+(c.datasetIndex===0?'R$ '+c.parsed.y.toFixed(2):c.parsed.y+' km')}}}, scales:{y:{grid:{color:'#eef1f5'}}, x:{grid:{display:false}}}}
   });
 
-  // NOVO GRÁFICO: Tempo Parado por Motorista
+  // GRÁFICO: Tempo Parado por Motorista
   const motEl = document.getElementById('chMot');
   if(motEl) {
     const aggMot = {};
